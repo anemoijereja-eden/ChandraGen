@@ -5,7 +5,7 @@ from pathlib import Path
 # TODO: make config dict redefinable with command line args
 # TODO: make an example/default confdict that isn't tied to atl
 #This confdict is the one written for the all things linux code of conduct.
-config: dict = { 
+default_config: dict = { 
 "heading": r"""
 ```
   _____        __      ____  ___  _____             __         __
@@ -31,21 +31,21 @@ config: dict = {
 }
 
 # Grab the file, then split it into a 2D list for ease of manipulation
-with open(config["input_path"]) as f:
+with open(default_config["input_path"]) as f:
     input_file = f.readlines()
 
 
 # strip the heading and footing from the input document
-heading_end = input_file.index(config["heading_end_pattern"]) + 2
+heading_end = input_file.index(default_config["heading_end_pattern"]) + 2
 print(f"Removing header ending at line {str(heading_end)}")
 del input_file[0:heading_end]
 
-footer_start = input_file.index(config["footing_start_pattern"])
+footer_start = input_file.index(default_config["footing_start_pattern"])
 print(f"Removing footer starting at line {str(footer_start)}")
 del input_file[footer_start:]
 
 # multiline formatters
-def format_table(multiline_buffer: list) -> list:
+def format_table(multiline_buffer: list, config: dict) -> list:
     table = [i[2:-2].split(" | ") for i in multiline_buffer]   # take the buffer and convert the table lines into a 2d list
     table_width: int = config["preformatted_unicode_columns"]
     clean_table = []
@@ -73,7 +73,7 @@ def format_table(multiline_buffer: list) -> list:
     return final_table
         
 # Line formatters
-def apply_line_formatters(line: str) -> str:
+def apply_line_formatters(line: str, config: dict) -> str:
     if config["strip_inline_formatting"]:
         line = strip_inline_markdown(line)
     if config["convert_bullet_point_links"]:
@@ -132,7 +132,7 @@ def convert_known_components(line: str) -> str:
 def normalize_code_blocks(line: str) -> str:
     return line if not line.startswith("```") else "```\n"
 
-def format_document(input_doc: list) -> list:
+def format_document(input_doc: list, config: dict) -> list:
     #Global registers for the iteration logic to use
     format_multiline: bool  = False  # switches iteration logic between single and multiple line formatter modes
     multiline_buffer: list  = []     # 2D list that's used to buffer multiline formatting
@@ -143,14 +143,14 @@ def format_document(input_doc: list) -> list:
     # - runs the line through a line-formatting pipeline
     # - Pushes multi-line formatting types into a buffer to run through multi-line formatters
     for index, line in enumerate(input_doc):
-        line = apply_line_formatters(line)
+        line = apply_line_formatters(line, config)
         if format_multiline:
             if line.startswith("|"): 
                 multiline_buffer.append(line)
             else:
                 # We're done building the multi-line buffer, format it and push it to the final doc!
                 format_multiline = False
-                multiline_buffer = format_table(multiline_buffer) if config["format_unicode_tables"] else multiline_buffer
+                multiline_buffer = format_table(multiline_buffer, config) if config["format_unicode_tables"] else multiline_buffer
                 output_doc += multiline_buffer # append the formatted buffer to the document
                 multiline_buffer.clear()
         else:
@@ -162,7 +162,7 @@ def format_document(input_doc: list) -> list:
     return output_doc
                 
 # format the input doc and write the results to the output doc
-gemtext = f"{config["heading"]}{''.join(format_document(input_file))}{config["footing"]}"
-with open(config["output_path"], "w") as page:
+gemtext = f"{default_config["heading"]}{''.join(format_document(input_file, default_config))}{default_config["footing"]}"
+with open(default_config["output_path"], "w") as page:
     page.write(gemtext)
 print("Page generated successfully!")
