@@ -5,7 +5,8 @@ from pathlib import Path
 # TODO: make config dict redefinable with command line args
 # TODO: make an example/default confdict that isn't tied to atl
 #This confdict is the one written for the all things linux code of conduct.
-default_config: dict = { 
+example_config: dict = { 
+# If heading or footing is defined in a conf, you're also expected to include a start/end pattern that matches a line's content
 "heading": r"""
 ```
   _____        __      ____  ___  _____             __         __
@@ -14,35 +15,46 @@ default_config: dict = {
 \___/\___/\_,_/\__/  \____/_/   \___/\___/_//_/\_,_/\_,_/\__/\__/
 ```
 """,
+"heading_end_pattern" : "<!-- END doctoc generated TOC please keep comment here to allow auto update -->\n",
+"heading_strip_offset_lines" : 2,
 
 "footing": r"""
 ## Contributors
 => https://contrib.rocks Made with contrib.rocks
 => https://contrib.rocks/image?repo=allthingslinux/code-of-conduct Contributors
 """,
-"heading_end_pattern" : "<!-- END doctoc generated TOC please keep comment here to allow auto update -->\n",
 "footing_start_pattern" : "## Contributors\n",
+"footing_strip_offset_lines":   0,
+# input and output pats are required to run the file formatter.
+"input_path":                   Path("./code-of-conduct/README.md"),
+"output_path":                  Path("./allthingslinux.org/code-of-conduct.gmi"),
+# standard column count for all formatters that output to preformatted text blocks with ascii art
+"preformatted_unicode_columns": 80,
+# pipeline config. these define which formatters will be run on the document.
 "strip_inline_formatting":      True,
 "convert_bullet_point_links":   True,
 "format_unicode_tables":        True,
-"input_path":                   Path("./code-of-conduct/README.md"),
-"output_path":                  Path("./allthingslinux.org/code-of-conduct.gmi"),
-"preformatted_unicode_columns": 80,
+"convert_known_mdx_components": True,
+"strip_imports_exports":        True,
+"strip_jsx_tags":               True,
+"normalize_codeblocks":         True,
 }
 
-# Grab the file, then split it into a 2D list for ease of manipulation
-with open(default_config["input_path"]) as f:
-    input_file = f.readlines()
+# document pre-processors
+# formatters that make changes to the document before running it through the pipeline
 
+def strip_heading(document: list, config: dict) -> list:
+    heading_end = document.index(config["heading_end_pattern"]) + config["heading_strip_offset_lines"]
+    del document[0:heading_end]
+    heading = config["heading"].splitlines(keepends=True)
+    document = heading + document
+    return document
 
-# strip the heading and footing from the input document
-heading_end = input_file.index(default_config["heading_end_pattern"]) + 2
-print(f"Removing header ending at line {str(heading_end)}")
-del input_file[0:heading_end]
-
-footer_start = input_file.index(default_config["footing_start_pattern"])
-print(f"Removing footer starting at line {str(footer_start)}")
-del input_file[footer_start:]
+def strip_footing(document: list, config: dict) -> list:
+    footer_start = document.index(config["footing_start_pattern"]) + config["footing_strip_offset_lines"]
+    del document[footer_start:]
+    document.insert(len(document), config["footing"])
+    return document
 
 # multiline formatters
 def format_table(multiline_buffer: list, config: dict) -> list:
@@ -73,18 +85,21 @@ def format_table(multiline_buffer: list, config: dict) -> list:
     return final_table
         
 # Line formatters
+def config_enabled(config: dict, key: str) -> bool:
+    return config.get(key, False)
+
 def apply_line_formatters(line: str, config: dict) -> str:
-    if config["strip_inline_formatting"]:
+    if config_enabled(config, "strip_inline_formatting"):
         line = strip_inline_markdown(line)
-    if config["convert_bullet_point_links"]:
+    if config_enabled(config, "convert_bullet_point_links"):
         line = convert_links(line)
-    if config["convert_known_mdx_conponents"]:
+    if config_enabled(config, "convert_known_mdx_components"):
         line = convert_known_components(line)
-    if config["strip_imports_exports"]:
+    if config_enabled(config, "strip_imports_exports"):
         line = strip_imports_exports(line)
-    if config["strip_jsx_tags"]:
+    if config_enabled(config, "strip_jsx_tags"):
         line = strip_jsx_tags(line)
-    if config["normalize_codeblocks"]:
+    if config_enabled(config, "normalize_codeblocks"):
         line = normalize_code_blocks(line)
     return line
 
@@ -160,9 +175,26 @@ def format_document(input_doc: list, config: dict) -> list:
             else:
                 output_doc.append(line)
     return output_doc
-                
-# format the input doc and write the results to the output doc
-gemtext = f"{default_config["heading"]}{''.join(format_document(input_file, default_config))}{default_config["footing"]}"
-with open(default_config["output_path"], "w") as page:
-    page.write(gemtext)
-print("Page generated successfully!")
+ 
+def apply_formatting_to_file(config: dict) -> bool:
+    if config["input_path"] is None or config["output_path"] is None:
+        print("Error! input or output path not specified")
+        return False
+    
+    # Grab the file, then split it into a 2D list for ease of manipulation
+    with open(config["input_path"]) as f:
+        input_file = f.readlines()
+               
+    # Run document pre-processors before pushing it into the formatting pipeline
+    if config["heading"] is not None:
+        input_file = strip_heading(input_file, config)
+    
+    if config["footing"] is not None:
+        input_file = strip_footing(input_file, config)
+               
+    # format the input doc and write the results to the output doc
+    gemtext = f"{''.join(format_document(input_file, config))}"
+    print(repr(gemtext))
+    with open(config["output_path"], "w", encoding="utf-8") as page:
+        page.write(gemtext)    
+    return True
