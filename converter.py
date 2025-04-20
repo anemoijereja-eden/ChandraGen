@@ -1,6 +1,8 @@
 import re
 import textwrap
 from pathlib import Path
+from dataclasses import dataclass
+from typing import Optional
 
 # TODO: make config dict redefinable with command line args
 # TODO: make an example/default confdict that isn't tied to atl
@@ -39,27 +41,64 @@ example_config: dict = {
 "strip_jsx_tags":               True,
 "normalize_codeblocks":         True,
 }
+@dataclass
+class Config:
+    heading: Optional[str]               = None
+    heading_end_pattern: Optional[str]   = None
+    heading_strip_offset_lines: int      = 0
 
+    footing: Optional[str]               = None
+    footing_start_pattern: Optional[str] = None
+    footing_strip_offset_lines: int      = 0
+
+    input_path: Optional[Path]           = None
+    output_path: Optional[Path]          = None
+
+    preformatted_unicode_columns: int    = 80
+
+    # Formatter toggles
+    strip_inline_formatting: bool        = True
+    convert_bullet_point_links: bool     = True
+    format_unicode_tables: bool          = True
+    convert_known_mdx_components: bool   = True
+    strip_imports_exports: bool          = True
+    strip_jsx_tags: bool                 = True
+    normalize_codeblocks: bool           = True
+
+# flags for formatters to use
+@dataclass
+class Flags:
+    in_preformat: bool = False
+    in_multiline: bool = False
+ 
 # document pre-processors
 # formatters that make changes to the document before running it through the pipeline
 
-def strip_heading(document: list, config: dict) -> list:
-    heading_end = document.index(config["heading_end_pattern"]) + config["heading_strip_offset_lines"]
+def strip_heading(document: list, config: Config) -> list:
+    if config.heading is None or config.heading_end_pattern is None:
+        print("Error! cannot strip heading without defined replacement and ending pattern")
+        return document
+    heading_end = document.index(config.heading_end_pattern) + config.heading_strip_offset_lines
     del document[0:heading_end]
-    heading = config["heading"].splitlines(keepends=True)
+    heading = config.heading.splitlines(keepends=True)
     document = heading + document
     return document
 
-def strip_footing(document: list, config: dict) -> list:
-    footer_start = document.index(config["footing_start_pattern"]) + config["footing_strip_offset_lines"]
+def strip_footing(document: list, config: Config) -> list:
+    if config.footing is None or config.footing_start_pattern is None:
+        print("Error! cannot strip footing without defined replacement and starting pattern")
+        return document
+    footer_start = document.index(config.footing_start_pattern) + config.footing_strip_offset_lines
     del document[footer_start:]
-    document.insert(len(document), config["footing"])
+    footer = config.footing.splitlines(keepends=True)
+    document.extend(footer)
     return document
 
+
 # multiline formatters
-def format_table(multiline_buffer: list, config: dict) -> list:
+def format_table(multiline_buffer: list, config: Config) -> list:
     table = [i[2:-2].split(" | ") for i in multiline_buffer]   # take the buffer and convert the table lines into a 2d list
-    table_width: int = config["preformatted_unicode_columns"]
+    table_width: int = config.preformatted_unicode_columns
     clean_table = []
     column_width = max(len(column.strip()) for column in table[0])
     for x, y in enumerate(table):               # strips the seperating line 
@@ -88,22 +127,28 @@ def format_table(multiline_buffer: list, config: dict) -> list:
 def config_enabled(config: dict, key: str) -> bool:
     return config.get(key, False)
 
-def apply_line_formatters(line: str, config: dict) -> str:
-    if config_enabled(config, "strip_inline_formatting"):
-        line = strip_inline_markdown(line)
-    if config_enabled(config, "convert_bullet_point_links"):
-        line = convert_links(line)
-    if config_enabled(config, "convert_known_mdx_components"):
-        line = convert_known_components(line)
-    if config_enabled(config, "strip_imports_exports"):
-        line = strip_imports_exports(line)
-    if config_enabled(config, "strip_jsx_tags"):
-        line = strip_jsx_tags(line)
-    if config_enabled(config, "normalize_codeblocks"):
-        line = normalize_code_blocks(line)
+def apply_line_formatters(line: str, config: Config, flags: Flags) -> str:
+    if config.strip_inline_formatting:
+        line = strip_inline_markdown(line, flags)
+
+    if config.convert_bullet_point_links:
+        line = convert_links(line, flags)
+
+    if config.convert_known_mdx_components:
+        line = convert_known_components(line, flags)
+
+    if config.strip_imports_exports:
+        line = strip_imports_exports(line, flags)
+
+    if config.strip_jsx_tags:
+        line = strip_jsx_tags(line, flags)
+
+    if config.normalize_codeblocks:
+        line = normalize_code_blocks(line, flags)
+
     return line
 
-def convert_links(line: str) -> str:
+def convert_links(line: str, flags: Flags) -> str:
     #Convert "- [label](url)" markdown link lines to "=> url label" gemtext links
     if line.startswith("- ["):
         # strip the first 3 characters "- [" off the line, then break it in half at the ](
@@ -112,7 +157,9 @@ def convert_links(line: str) -> str:
         return f"=> {link[1].replace(")\n","")} {link[0]}\n"
     return line
 
-def strip_inline_markdown(line: str) -> str:
+def strip_inline_markdown(line: str, flags: Flags) -> str:
+    if flags.in_preformat:
+        return line
     #set up a regex method to remove inline markdown
     inline_md_replacements = {"*":"","**":"","***":"","_":"","__":"","___":"",}
     inline_md_pattern = re.compile("|".join(re.escape(old) for old in inline_md_replacements))
@@ -120,20 +167,20 @@ def strip_inline_markdown(line: str) -> str:
     return f"{line[0:2]}{inline_md_pattern.sub(lambda match: inline_md_replacements[match.group(0)], line[2:])}"
 
 # MDX formatters
-def strip_imports_exports(line: str) -> str:
+def strip_imports_exports(line: str, flags: Flags) -> str:
     if line.strip().startswith(("import ", "export ")):
         return ""
     return line
 
-def strip_jsx_tags(line: str) -> str:
+def strip_jsx_tags(line: str, flags: Flags) -> str:
     if line.strip().startswith("<") and not line.strip().startswith(("<!--", "<!DOCTYPE")):
         return ""  # or convert it if you want special behavior!
     return line
 
-def strip_jsx_expressions(line: str) -> str:
+def strip_jsx_expressions(line: str, flags: Flags) -> str:
     return re.sub(r"{.*?}", "", line)
 
-def convert_known_components(line: str) -> str:
+def convert_known_components(line: str, flags: Flags) -> str:
     component_map = {
         "<Note>": "NOTE:",
         "</Note>": "",
@@ -144,57 +191,59 @@ def convert_known_components(line: str) -> str:
         line = line.replace(jsx, gem)
     return line
 
-def normalize_code_blocks(line: str) -> str:
+def normalize_code_blocks(line: str, flags: Flags) -> str:
     return line if not line.startswith("```") else "```\n"
 
-def format_document(input_doc: list, config: dict) -> list:
+def format_document(input_doc: list, config: Config) -> list:
     #Global registers for the iteration logic to use
-    format_multiline: bool  = False  # switches iteration logic between single and multiple line formatter modes
-    multiline_buffer: list  = []     # 2D list that's used to buffer multiline formatting
-    output_doc:       list  = []     # The buffer for the final document
-
+    multiline_buffer:   list  = []     # 2D list that's used to buffer multiline formatting
+    output_doc:         list  = []     # The buffer for the final document
+    flags = Flags()
     # Main Iterator
     # this is the beating heart of this conversion tool. it runs through each line and:
     # - runs the line through a line-formatting pipeline
     # - Pushes multi-line formatting types into a buffer to run through multi-line formatters
     for index, line in enumerate(input_doc):
-        line = apply_line_formatters(line, config)
-        if format_multiline:
+        if line.startswith("```"):
+            flags.in_preformat = not flags.in_preformat
+        line = apply_line_formatters(line, config, flags)
+        if flags.in_multiline:
             if line.startswith("|"): 
                 multiline_buffer.append(line)
             else:
                 # We're done building the multi-line buffer, format it and push it to the final doc!
-                format_multiline = False
-                multiline_buffer = format_table(multiline_buffer, config) if config["format_unicode_tables"] else multiline_buffer
+                flags.in_multiline = False
+                multiline_buffer = format_table(multiline_buffer, config) if config.format_unicode_tables else multiline_buffer
                 output_doc += multiline_buffer # append the formatted buffer to the document
                 multiline_buffer.clear()
         else:
             if line.startswith("|"):
-                format_multiline = True
+                flags.in_multiline = True
                 multiline_buffer.append(line)
             else:
                 output_doc.append(line)
     return output_doc
  
-def apply_formatting_to_file(config: dict) -> bool:
-    if config["input_path"] is None or config["output_path"] is None:
+def apply_formatting_to_file(config: Config) -> bool:
+    if config.input_path is None or config.output_path is None:
         print("Error! input or output path not specified")
         return False
-    
+
     # Grab the file, then split it into a 2D list for ease of manipulation
-    with open(config["input_path"]) as f:
+    with open(config.input_path) as f:
         input_file = f.readlines()
-               
+
     # Run document pre-processors before pushing it into the formatting pipeline
-    if config["heading"] is not None:
+    if config.heading:
         input_file = strip_heading(input_file, config)
-    
-    if config["footing"] is not None:
+
+    if config.footing:
         input_file = strip_footing(input_file, config)
-               
+
     # format the input doc and write the results to the output doc
     gemtext = f"{''.join(format_document(input_file, config))}"
-    print(repr(gemtext))
-    with open(config["output_path"], "w", encoding="utf-8") as page:
-        page.write(gemtext)    
+
+    with open(config.output_path, "w", encoding="utf-8") as page:
+        page.write(gemtext)
+
     return True
