@@ -70,6 +70,12 @@ class NormalizeCodeBlocks(LineFormatter):
 # MDX Converters
 class StripImportsExports(LineFormatter):
     name = "strip_imports_exports"
+    description = """
+    Strip Imports and Exports
+    
+    Remove the line if it's a JSX import or export.
+    """
+    valid_types = ["mdx"]
     
     def apply(self, line: str, flags: Flags) -> str:
         if line.strip().startswith(("import ", "export ")):
@@ -78,6 +84,13 @@ class StripImportsExports(LineFormatter):
 
 class StripJSXTags(LineFormatter):
     name = "strip_jsx_tags"
+    description = """
+    Strip JSX Tags
+    
+    Naively remove lines starting with < that aren't DOCTYPE or HTML style comments.
+    This should also remove some HTML tags, but not very well.
+    """
+    valid_types = ["mdx"]
     
     def apply(self, line: str, flags: Flags) -> str:
         if line.strip().startswith("<") and not line.strip().startswith(("<!--", "<!DOCTYPE")):
@@ -86,13 +99,25 @@ class StripJSXTags(LineFormatter):
 
 class StripJSXExpressions(LineFormatter):
     name = "strip_jsx_expressions"
+    description = """
+    Strip JSX expressions
     
+    Naively strips out anything enclosed by curly braces.
+    This will probably break your site.
+    If you want to substitute them properly, set up a plugin formatter that does so, see the plugin example :3
+    """
+    valid_types = ["mdx"]
     def apply(self, line: str, flags: Flags) -> str:
         return re.sub(r"{.*?}", "", line)
 
 class ConvertKnownMDXComponents(LineFormatter):
     name = "convert_known_mdx_components"
+    description = """
+    Convert Known MDX components
     
+    If a line is an MDX note or warning, replace with a basic NOTE: or WARNING:
+    """
+    valid_types = ["mdx"]
     def apply(self, line: str, flags: Flags) -> str:
         component_map = {
             "<Note>": "NOTE:",
