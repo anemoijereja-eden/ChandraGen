@@ -5,6 +5,8 @@ from chandragen.plugins import import_all_plugins
 #Line Formatter base class
 class LineFormatter(ABC):
     name: str
+    description: str
+    valid_types: list[str]
     
     @abstractmethod
     def apply(self, line: str, flags: Flags) -> str:
@@ -14,7 +16,15 @@ class LineFormatter(ABC):
 
 #Markdown Converters
 class StripInlineMarkdown(LineFormatter):
-    name = "strip_inline_formatting"
+    name = "strip_inline_md_formatting"
+    description = """
+    Strip inline markdown formatting:
+    
+    Strips all inline markdown bold and italic sequences
+    naive approach, may cause issues.
+    does not affect preformatted text/codeblocks
+    """
+    valid_types = ["md", "mdx"]
     
     def apply(self, line: str, flags: Flags) -> str:
         if flags.in_preformat:
@@ -26,7 +36,14 @@ class StripInlineMarkdown(LineFormatter):
         return f"{line[0:2]}{inline_md_pattern.sub(lambda match: inline_md_replacements[match.group(0)], line[2:])}"
 
 class ConvertBulletPointLinks(LineFormatter):
-    name = "convert_bullet_point_links" 
+    name = "convert_bullet_point_links"
+    description = """
+    Convert Bullet Point Links
+    
+    takes markdown style links immediately following a bullet point,
+    and converts them into a gemini link-line.
+    """
+    valid_types = ["md", "mdx"] 
     
     def apply(self, line: str, flags: Flags) -> str:
         #Convert "- [label](url)" markdown link lines to "=> url label" gemtext links
@@ -39,6 +56,13 @@ class ConvertBulletPointLinks(LineFormatter):
 
 class NormalizeCodeBlocks(LineFormatter):
     name = "normalize_code_blocks"
+    description="""
+    Normalize codeblocks
+    
+    Strip out any characters defining a language on a code-block
+    ensures compatibility with the gemini preformatted text block standard.
+    """
+    valid_types = ["md", "mdx"]
 
     def apply(self, line: str, flags: Flags) -> str:
         return line if not line.startswith("```") else "```\n"
@@ -80,7 +104,7 @@ class ConvertKnownMDXComponents(LineFormatter):
             line = line.replace(jsx, gem)
         return line
 
-
+# Load all plugins, then use introspection to build the formatter registry
 def build_formatter_registry() -> dict[str, LineFormatter]:
     import_all_plugins()
     registry = {}
