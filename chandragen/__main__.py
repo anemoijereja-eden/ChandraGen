@@ -4,6 +4,7 @@ import tomllib
 import argparse
 from typing import Iterable
 from chandragen.types import JobConfig
+from chandragen.line_formatters import FORMATTER_REGISTRY
 
 def collect_files(path: Path, recursive: bool = False) -> Iterable[Path]:
     if recursive:
@@ -104,12 +105,30 @@ def run_config(config_path: Path):
     joblist = parse_config_file(config_path)
     run_joblist(joblist)
     
+def list_formatters_command(args):
+    print("Loaded formatters:")
+    for formatter_name in FORMATTER_REGISTRY.keys():
+        print(f" - {formatter_name}")
+
 def main():
-    # Set up command-line argument parsing
-    parser = argparse.ArgumentParser(description="Run ChandraGen with a given config.")
-    parser.add_argument("config", help="Path to the config file.")
+    print("Starting ChandraGen CLI~ :3")
+
+    parser = argparse.ArgumentParser(description="ChandraGen Static Site Generator uwu~")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    # Subcommand: run-config
+    run_parser = subparsers.add_parser("run-config", help="Run ChandraGen with a given config file.")
+    run_parser.add_argument("config", help="Path to the config file.")
+    run_parser.set_defaults(func=run_config)
+
+    # Subcommand: list-formatters
+    list_parser = subparsers.add_parser("list-formatters", help="List all available formatter modules.")
+    list_parser.set_defaults(func=list_formatters_command)
+
     args = parser.parse_args()
-    run_config(args.config)
+    args.func(args)  # calls the right function depending on the subcommand
+
 
 if __name__ == "__main__":
+    
     main()

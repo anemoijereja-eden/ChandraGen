@@ -1,7 +1,7 @@
 import re
 from abc import ABC, abstractmethod
 from chandragen.types import FormatterFlags as Flags
-
+from chandragen.plugins import import_all_plugins
 #Line Formatter base class
 class LineFormatter(ABC):
     name: str
@@ -82,6 +82,7 @@ class ConvertKnownMDXComponents(LineFormatter):
 
 
 def build_formatter_registry() -> dict[str, LineFormatter]:
+    import_all_plugins()
     registry = {}
     for subclass in LineFormatter.__subclasses__():
         if hasattr(subclass, "name") and subclass.name:
