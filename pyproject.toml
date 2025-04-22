@@ -1,0 +1,21 @@
+[project]
+name = "chandragen"
+version = "0.0.0"
+description = "A configurable and extensible SSG framework for the gemini protocol"
+authors = [
+    {name = "thanos",email = "thanos@allthingslinux.org"}
+]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "toml (>=0.10.2,<0.11.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+chandragen = "chandragen.__main__:main"

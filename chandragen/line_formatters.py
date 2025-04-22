@@ -1,6 +1,6 @@
 import re
 from abc import ABC, abstractmethod
-from converter import Flags
+from chandragen.types import FormatterFlags as Flags
 
 #Line Formatter base class
 class LineFormatter(ABC):
@@ -16,7 +16,6 @@ class LineFormatter(ABC):
 class StripInlineMarkdown(LineFormatter):
     name = "strip_inline_formatting"
     
-    @abstractmethod
     def apply(self, line: str, flags: Flags) -> str:
         if flags.in_preformat:
             return line
@@ -29,7 +28,6 @@ class StripInlineMarkdown(LineFormatter):
 class ConvertBulletPointLinks(LineFormatter):
     name = "convert_bullet_point_links" 
     
-    @abstractmethod
     def apply(self, line: str, flags: Flags) -> str:
         #Convert "- [label](url)" markdown link lines to "=> url label" gemtext links
         if line.startswith("- ["):
