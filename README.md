@@ -19,7 +19,6 @@ ChandraGen is build entirely using python simply because that's the best languag
 
 # TODO:
 - allow formatter classes to specify a MIME type and extend file extension support at the batching steps
-- Add additional formatters to handle inline markdown links
 - Write a Dockerfile for this, make it integrate cleanly in a docker compose that builds ChandraGen and a gemini server line Gemserv
 - Integration with common MDX-based http ssg frameworks
 - Contributor documentation
