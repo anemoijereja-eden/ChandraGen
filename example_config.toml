@@ -1,9 +1,9 @@
 [defaults]
 # This block declares the default pipeline config, and can be overridden.
 formatters = [
-    "strip_inline_formatting",
+    "strip_inline_md_formatting",
     "convert_bullet_point_links",
-    "format_unicode_tables",
+    "format_tables_as_unicode",
     "convert_known_mdx_components",
     "strip_imports_exports",
     "strip_jsx_tags",
@@ -17,7 +17,12 @@ table_style = "unicode"
 
 [file.code_of_conduct]
 # config section for a single document
-formatter_whitelist = []
+# entry level formatters are added on top of the default formatters list.
+# formatters can be removed by blacklisting
+formatters= [
+    "strip_heading",
+    "strip_footing"
+]
 formatter_blacklist = [
     "strip_jsx_tags",
     "strip_imports_exports",
@@ -25,7 +30,7 @@ formatter_blacklist = [
     "convert_known_mdx_components"
 ]
 output_path = "./main_gemroot/code-of-conduct.gmi"
-input_path = "./code-of-conduct.md"
+input_path = "/home/thanos/dev/atl-gemini/code-of-conduct/README.md"
 heading = '''
 ```
   _____        __      ____  ___  _____             __         __

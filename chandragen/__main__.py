@@ -4,7 +4,7 @@ import tomllib
 import argparse
 from typing import Iterable
 from chandragen.types import JobConfig
-from chandragen.line_formatters import FORMATTER_REGISTRY
+from chandragen.formatters import FORMATTER_REGISTRY
 
 def collect_files(path: Path, recursive: bool = False) -> Iterable[Path]:
     if recursive:
@@ -40,7 +40,7 @@ def parse_config_file(toml_path: Path) -> list[JobConfig]:
             for name, subentry in entry.items():
                 input_path = Path(subentry.get("input_path"))
                 output_path = Path(subentry.get("output_path", default_outdir / f"{name}.gmi"))
-                formatters = subentry.get("formatters", default_formatters)
+                formatters = default_formatters + subentry.get("formatters")
                 blacklist = subentry.get("formatter_blacklist", [])
                 final_formatters = apply_blacklist(formatters, blacklist)
                 flags = {**default_flags, **subentry.get("formatter_flags", {})}
@@ -90,25 +90,44 @@ def parse_config_file(toml_path: Path) -> list[JobConfig]:
 
 # joblist runner
 def run_joblist(joblist: list[JobConfig]):
+    all_formatters = [*FORMATTER_REGISTRY.line, *FORMATTER_REGISTRY.multiline, *FORMATTER_REGISTRY.preprocessor]
+    print(f"Running formatting jobs!\nAvailable formatters: {all_formatters}")
     success_count: int = 0
     failure_count: int = 0
-    for job in joblist:
+    for job in joblist:   
         if converter.apply_formatting_to_file(job):
             print(f"Successfully converted {job.jobname}!")
             success_count += 1
         else:
             print(f"Failed to convert {job.jobname}!")
             failure_count += 1
+        for i in job.enabled_formatters:
+            if not all_formatters.__contains__(i):
+                print(f"Formatter not found: {i}")
+    
     print(f"✨ Done converting! {success_count} succeeded, {failure_count} failed.")
     
-def run_config(config_path: Path):
-    joblist = parse_config_file(config_path)
+def run_config(args):
+    joblist = parse_config_file(args.config)
     run_joblist(joblist)
     
 def list_formatters_command(args):
     print("Loaded formatters:")
-    for formatter_name in FORMATTER_REGISTRY.keys():
+    print("Line formatters:")
+    for formatter_name in FORMATTER_REGISTRY.line.keys():
         print(f" - {formatter_name}")
+    print("Multi-line formatters:")
+    for formatter_name in FORMATTER_REGISTRY.multiline.keys():
+        print(f" - {formatter_name}")
+    print("Document Pre-Processors:")
+    for formatter_name in FORMATTER_REGISTRY.preprocessor.keys():
+        print(f" - {formatter_name}")
+
+def formatter_info_command(args):
+    formatter = args.formatter
+    if formatter in FORMATTER_REGISTRY.line.keys():
+        formatter_cls = FORMATTER_REGISTRY.line[formatter]
+        print(f"Line-formatter {formatter}:\nDescription:\n{formatter_cls.description}\nValid types: {formatter_cls.valid_types}\nOrigin: {formatter_cls.__module__}")
 
 def main():
     print("Starting ChandraGen CLI~ :3")
@@ -124,6 +143,11 @@ def main():
     # Subcommand: list-formatters
     list_parser = subparsers.add_parser("list-formatters", help="List all available formatter modules.")
     list_parser.set_defaults(func=list_formatters_command)
+
+    # Subcommand: formatter-info
+    info_parser = subparsers.add_parser("formatter-info", help="Get information about a formatter")
+    info_parser.add_argument("formatter", help="Name of a formatter")
+    info_parser.set_defaults(func=formatter_info_command)
 
     args = parser.parse_args()
     args.func(args)  # calls the right function depending on the subcommand

@@ -1,5 +1,5 @@
-import textwrap
-from chandragen.line_formatters import FORMATTER_REGISTRY
+import re 
+from chandragen.formatters import FORMATTER_REGISTRY
 from chandragen.types import FormatterFlags as Flags, JobConfig as Config
 
 # document pre-processors
@@ -27,32 +27,6 @@ def strip_footing(document: list, config: Config) -> list:
 
 
 # multiline formatters
-def format_table(multiline_buffer: list, config: Config) -> list:
-    table = [i[2:-2].split(" | ") for i in multiline_buffer]   # take the buffer and convert the table lines into a 2d list
-    table_width: int = config.preformatted_unicode_columns
-    clean_table = []
-    column_width = max(len(column.strip()) for column in table[0])
-    for x, y in enumerate(table):               # strips the seperating line 
-        if not all( char == '-' for char in y[0]):      # Check if first column of row is all dashes. if it is, it's a seperator row and should be discarded.
-            clean0 = y[0].strip() # Generate cleaned version of columns 0 and 1
-            clean1 = y[1].strip()
-            wrapped_text = textwrap.wrap(clean1, width = (table_width - column_width) - 5)
-            clean_table.append([clean0, wrapped_text[0]])
-            for segment in wrapped_text[1:]:
-                clean_table.append([" "*column_width, segment])
-            clean_table.append(["",""]) # add a blank line between each row for readability
-    
-    final_table = [
-        "```\n",
-        f"┌{'─'*(column_width+2)}┬{'─'*((table_width - 3) - column_width)}┐\n",
-        *[
-            f"├{'─'*(column_width+2)}┼{'─'*((table_width - 3) - column_width)}┤\n" if idx == 1 else "" +
-            f"│ {row[0] + ' '*(column_width - len(row[0]))} │ {row[1] + ' '*((table_width - 4) - (len(row[1]) + column_width))}│\n"
-            for idx, row in enumerate(clean_table)
-        ],
-        f"└{'─'*(column_width+2)}┴{'─'*((table_width - 3) - column_width)}┘\n```\n"
-    ]
-    return final_table
         
 # Line formatters
 def config_enabled(config: dict, key: str) -> bool:
@@ -61,11 +35,9 @@ def config_enabled(config: dict, key: str) -> bool:
 
 def apply_line_formatters(line: str, config: Config, flags: Flags) -> str:
     for name in config.enabled_formatters:
-        formatter = FORMATTER_REGISTRY.get(name)
+        formatter = FORMATTER_REGISTRY.line.get(name)
         if formatter:
             line = formatter.apply(line, flags)
-        else:
-            print(f"⚠️  Formatter '{name}' not found in registry. Skipping.")
     return line
 
 def format_document(input_doc: list, config: Config) -> list:
@@ -81,21 +53,29 @@ def format_document(input_doc: list, config: Config) -> list:
         if line.startswith("```"):
             flags.in_preformat = not flags.in_preformat
         line = apply_line_formatters(line, config, flags)
-        if flags.in_multiline:
-            if line.startswith("|"): 
-                multiline_buffer.append(line)
-            else:
+        for name in config.enabled_formatters:
+            formatter = FORMATTER_REGISTRY.multiline.get(name)
+            if not formatter:
+                continue
+            if not re.match(formatter.start_pattern, line):
+                continue
+            flags.in_multiline = True
+            flags.active_multiline_formatter = formatter.name
+        if flags.in_multiline and flags.active_multiline_formatter is not None:
+            active_multiline_formatter = FORMATTER_REGISTRY.multiline.get(flags.active_multiline_formatter)
+            if active_multiline_formatter is None:
+                continue
+            if re.match(active_multiline_formatter.end_pattern, line):
                 # We're done building the multi-line buffer, format it and push it to the final doc!
                 flags.in_multiline = False
-                multiline_buffer = format_table(multiline_buffer, config) if "format_unicode_tables" in config.enabled_formatters else multiline_buffer
+                flags.active_multiline_formatter = None
+                multiline_buffer = active_multiline_formatter.apply(multiline_buffer, config, flags)
                 output_doc += multiline_buffer # append the formatted buffer to the document
                 multiline_buffer.clear()
+                continue
+            multiline_buffer.append(line)
         else:
-            if line.startswith("|"):
-                flags.in_multiline = True
-                multiline_buffer.append(line)
-            else:
-                output_doc.append(line)
+            output_doc.append(line)
     return output_doc
  
 def apply_formatting_to_file(config: Config) -> bool:
@@ -108,11 +88,10 @@ def apply_formatting_to_file(config: Config) -> bool:
         input_file = f.readlines()
 
     # Run document pre-processors before pushing it into the formatting pipeline
-    if config.heading:
-        input_file = strip_heading(input_file, config)
-
-    if config.footing:
-        input_file = strip_footing(input_file, config)
+    for formatter in config.enabled_formatters:
+        preprocessor = FORMATTER_REGISTRY.preprocessor.get(formatter)
+        if preprocessor:
+            input_file = preprocessor.apply(input_file, config) 
 
     # format the input doc and write the results to the output doc
     gemtext = f"{''.join(format_document(input_file, config))}"

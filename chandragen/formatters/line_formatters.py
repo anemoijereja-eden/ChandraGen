@@ -1,19 +1,6 @@
 import re
-from abc import ABC, abstractmethod
-from chandragen.types import FormatterFlags as Flags
-from chandragen.plugins import import_all_plugins
-#Line Formatter base class
-class LineFormatter(ABC):
-    name: str
-    description: str
-    valid_types: list[str]
-    
-    @abstractmethod
-    def apply(self, line: str, flags: Flags) -> str:
-        pass
-    
+from chandragen.types import FormatterFlags as Flags, LineFormatter
 # Internal line formatters:
-
 #Markdown Converters
 class StripInlineMarkdown(LineFormatter):
     name = "strip_inline_md_formatting"
@@ -129,13 +116,3 @@ class ConvertKnownMDXComponents(LineFormatter):
             line = line.replace(jsx, gem)
         return line
 
-# Load all plugins, then use introspection to build the formatter registry
-def build_formatter_registry() -> dict[str, LineFormatter]:
-    import_all_plugins()
-    registry = {}
-    for subclass in LineFormatter.__subclasses__():
-        if hasattr(subclass, "name") and subclass.name:
-            registry[subclass.name] = subclass()
-    return registry
-
-FORMATTER_REGISTRY = build_formatter_registry()

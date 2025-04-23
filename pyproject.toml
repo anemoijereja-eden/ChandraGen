@@ -1,5 +1,8 @@
 [project]
 name = "chandragen"
+packages = [
+    { include = "chandragen"}
+]
 version = "0.0.0"
 description = "A configurable and extensible SSG framework for the gemini protocol"
 authors = [
