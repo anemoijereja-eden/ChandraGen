@@ -1,18 +1,29 @@
 import re
-from chandragen.types import FormatterFlags as Flags, LineFormatter
+
+from chandragen.types import FormatterFlags as Flags
+from chandragen.types import LineFormatter
+
+
 # Internal line formatters:
 #Markdown Converters
 class StripInlineMarkdown(LineFormatter):
-    name = "strip_inline_md_formatting"
-    description = """
+    def __init__(self):
+        super().__init__(
+            "strip_inline_md_formatting",
+            """
     Strip inline markdown formatting:
     
     Strips all inline markdown bold and italic sequences
     naive approach, may cause issues.
     does not affect preformatted text/codeblocks
-    """
-    valid_types = ["md", "mdx"]
-    
+            """,
+            ["md", "mdx"],
+        )
+
+    @classmethod
+    def create(cls) -> LineFormatter:
+        return cls()
+
     def apply(self, line: str, flags: Flags) -> str:
         if flags.in_preformat:
             return line
@@ -23,15 +34,22 @@ class StripInlineMarkdown(LineFormatter):
         return f"{line[0:2]}{inline_md_pattern.sub(lambda match: inline_md_replacements[match.group(0)], line[2:])}"
 
 class ConvertBulletPointLinks(LineFormatter):
-    name = "convert_bullet_point_links"
-    description = """
+    def __init__(self):
+        super().__init__(
+            "convert_bullet_point_links",
+            """
     Convert Bullet Point Links
     
     takes markdown style links immediately following a bullet point,
     and converts them into a gemini link-line.
-    """
-    valid_types = ["md", "mdx"] 
-    
+            """,
+            ["md", "mdx"] 
+        )
+ 
+    @classmethod
+    def create(cls) -> LineFormatter:
+        return cls()
+   
     def apply(self, line: str, flags: Flags) -> str:
         #Convert "- [label](url)" markdown link lines to "=> url label" gemtext links
         if line.startswith("- ["):
@@ -42,69 +60,106 @@ class ConvertBulletPointLinks(LineFormatter):
         return line
 
 class NormalizeCodeBlocks(LineFormatter):
-    name = "normalize_code_blocks"
-    description="""
+    def __init__(self):
+        super().__init__(
+            "normalize_code_blocks",
+            """
     Normalize codeblocks
     
     Strip out any characters defining a language on a code-block
     ensures compatibility with the gemini preformatted text block standard.
-    """
-    valid_types = ["md", "mdx"]
+            """,
+            ["md", "mdx"]
+        )
+
+    @classmethod
+    def create(cls) -> LineFormatter:
+        return cls()
 
     def apply(self, line: str, flags: Flags) -> str:
         return line if not line.startswith("```") else "```\n"
 
 # MDX Converters
 class StripImportsExports(LineFormatter):
-    name = "strip_imports_exports"
-    description = """
+    def __init__(self):
+        super().__init__(
+            "strip_imports_exports",
+            """
     Strip Imports and Exports
     
     Remove the line if it's a JSX import or export.
-    """
-    valid_types = ["mdx"]
-    
+            """,
+            ["mdx"]
+        )
+        
+    @classmethod
+    def create(cls) -> LineFormatter:
+        return cls()
+   
     def apply(self, line: str, flags: Flags) -> str:
         if line.strip().startswith(("import ", "export ")):
             return ""
         return line
 
 class StripJSXTags(LineFormatter):
-    name = "strip_jsx_tags"
-    description = """
+    def __init__(self):
+        super().__init__(
+            "strip_jsx_tags",
+            """
     Strip JSX Tags
     
     Naively remove lines starting with < that aren't DOCTYPE or HTML style comments.
     This should also remove some HTML tags, but not very well.
-    """
-    valid_types = ["mdx"]
-    
+            """,
+            ["mdx"]
+        )
+ 
+    @classmethod
+    def create(cls) -> LineFormatter:
+        return cls()
+   
     def apply(self, line: str, flags: Flags) -> str:
         if line.strip().startswith("<") and not line.strip().startswith(("<!--", "<!DOCTYPE")):
             return ""
         return line
 
 class StripJSXExpressions(LineFormatter):
-    name = "strip_jsx_expressions"
-    description = """
+    def __init__(self):
+        super().__init__(
+            "strip_jsx_expressions",
+            """
     Strip JSX expressions
     
     Naively strips out anything enclosed by curly braces.
     This will probably break your site.
     If you want to substitute them properly, set up a plugin formatter that does so, see the plugin example :3
-    """
-    valid_types = ["mdx"]
+        """,
+        ["mdx"]
+        )
+
+    @classmethod
+    def create(cls) -> LineFormatter:
+        return cls()
+
     def apply(self, line: str, flags: Flags) -> str:
         return re.sub(r"{.*?}", "", line)
 
 class ConvertKnownMDXComponents(LineFormatter):
-    name = "convert_known_mdx_components"
-    description = """
+    def __init__(self):
+        super().__init__(
+            "convert_known_mdx_components",
+            """
     Convert Known MDX components
     
     If a line is an MDX note or warning, replace with a basic NOTE: or WARNING:
-    """
-    valid_types = ["mdx"]
+            """,
+            ["mdx"]
+        )
+        
+    @classmethod
+    def create(cls) -> LineFormatter:
+        return cls()
+
     def apply(self, line: str, flags: Flags) -> str:
         component_map = {
             "<Note>": "NOTE:",

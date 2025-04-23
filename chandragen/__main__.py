@@ -1,10 +1,12 @@
-import chandragen.converter as converter
-from pathlib import Path
-import tomllib
 import argparse
-from typing import Iterable
-from chandragen.types import JobConfig
+import tomllib
+from collections.abc import Iterable
+from pathlib import Path
+
+from chandragen import converter
 from chandragen.formatters import FORMATTER_REGISTRY
+from chandragen.types import JobConfig
+
 
 def collect_files(path: Path, recursive: bool = False) -> Iterable[Path]:
     if recursive:
@@ -20,7 +22,7 @@ def apply_blacklist(formatters: list[str] | str, blacklist: list[str] | str) -> 
 
 #Parse a config file and generate a joblist with configs to push to the file converter
 def parse_config_file(toml_path: Path) -> list[JobConfig]:
-    with open(toml_path, "rb") as f:
+    with Path(toml_path).open("rb") as f:
         raw_config = tomllib.load(f)
     
     defaults = raw_config.get("defaults", {})
@@ -70,8 +72,7 @@ def parse_config_file(toml_path: Path) -> list[JobConfig]:
                 flags = {**default_flags, **subentry.get("formatter_flags", {})}
                 # Collect and batch all of the files suggested by the config entry
                 recursive = subentry.get("recursive", False)
-                for file in collect_files(input_path, recursive):
-                    job_list.append(JobConfig(
+                job_list += [ JobConfig(
                         jobname = name,
                         input_path = file,
                         output_path = output_path / f"{file.stem}.gmi",
@@ -84,8 +85,8 @@ def parse_config_file(toml_path: Path) -> list[JobConfig]:
                         footing=subentry.get("footing"),
                         footing_start_pattern=subentry.get("footing_end_pattern"),
                         footing_strip_offset=subentry.get("footing_strip_offset", 0)
-                    
-                ))
+                        ) for file in collect_files(input_path, recursive)    
+                ]
     return job_list
 
 # joblist runner
@@ -107,25 +108,25 @@ def run_joblist(joblist: list[JobConfig]):
     
     print(f"✨ Done converting! {success_count} succeeded, {failure_count} failed.")
     
-def run_config(args):
+def run_config(args: argparse.Namespace):
     joblist = parse_config_file(args.config)
     run_joblist(joblist)
     
-def list_formatters_command(args):
+def list_formatters_command(args: argparse.Namespace):
     print("Loaded formatters:")
     print("Line formatters:")
-    for formatter_name in FORMATTER_REGISTRY.line.keys():
+    for formatter_name in FORMATTER_REGISTRY.line:
         print(f" - {formatter_name}")
     print("Multi-line formatters:")
-    for formatter_name in FORMATTER_REGISTRY.multiline.keys():
+    for formatter_name in FORMATTER_REGISTRY.multiline:
         print(f" - {formatter_name}")
     print("Document Pre-Processors:")
-    for formatter_name in FORMATTER_REGISTRY.preprocessor.keys():
+    for formatter_name in FORMATTER_REGISTRY.preprocessor:
         print(f" - {formatter_name}")
 
-def formatter_info_command(args):
+def formatter_info_command(args: argparse.Namespace):
     formatter = args.formatter
-    if formatter in FORMATTER_REGISTRY.line.keys():
+    if formatter in FORMATTER_REGISTRY.line:
         formatter_cls = FORMATTER_REGISTRY.line[formatter]
         print(f"Line-formatter {formatter}:\nDescription:\n{formatter_cls.description}\nValid types: {formatter_cls.valid_types}\nOrigin: {formatter_cls.__module__}")
 

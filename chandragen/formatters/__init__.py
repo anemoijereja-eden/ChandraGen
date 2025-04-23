@@ -1,29 +1,36 @@
-from chandragen.plugins import import_all_plugins
-from chandragen.types import LineFormatter, MultilineFormatter, DocumentPreprocessor, FormatterRegistry
 import importlib
 import pkgutil
 
+from chandragen.plugins import import_all_plugins
+from chandragen.types import DocumentPreprocessor, FormatterRegistry, LineFormatter, MultilineFormatter
+
+
 def import_builtin_formatters():
-    for finder, modname, ispkg in pkgutil.iter_modules(__path__):
+    for _finder, modname, _ispkg in pkgutil.iter_modules(__path__):
         full_name = f"{__name__}.{modname}"
         importlib.import_module(full_name)
 
+# To avoid import order shenanigans, ensure every module is loaded immediately when the formatter system is initialized
+import_all_plugins()
+import_builtin_formatters()
+
 def build_formatter_registry() -> FormatterRegistry:
-    import_all_plugins()
-    import_builtin_formatters()
     
-    line = {}
-    multiline = {}
-    preprocessors = {}
+    line: dict[str, LineFormatter] = {}
+    multiline: dict[str, MultilineFormatter] = {}
+    preprocessors: dict[str, DocumentPreprocessor] = {}
 
     for subclass in LineFormatter.__subclasses__():
-        line[subclass.name] = subclass()
+        formatter = subclass.create()
+        line[formatter.name] = formatter
 
     for subclass in MultilineFormatter.__subclasses__():
-        multiline[subclass.name] = subclass()
+        formatter = subclass.create()
+        multiline[formatter.name] = formatter
 
     for subclass in DocumentPreprocessor.__subclasses__():
-        preprocessors[subclass.name] = subclass()
+        formatter = subclass.create()
+        preprocessors[formatter.name] = formatter
 
     return FormatterRegistry(
         line = line,

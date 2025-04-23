@@ -1,8 +1,8 @@
-from typing import Optional
-from typing import Dict
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from abc import ABC, abstractmethod
 
 # Types used to pass data around the formatter system
 
@@ -19,48 +19,66 @@ class FormatterFlags:
 @dataclass
 class JobConfig:
     jobname: str                         = ""
-    formatter_flags: dict[str, bool]     = field(default_factory=dict)
-    heading: Optional[str]               = None
-    heading_end_pattern: Optional[str]   = None
+    formatter_flags: dict[str, bool]     = field(default_factory=dict[str, bool])
+    heading: str | None                  = None
+    heading_end_pattern: str | None      = None
     heading_strip_offset: int            = 0
 
-    footing: Optional[str]               = None
-    footing_start_pattern: Optional[str] = None
+    footing: str | None                  = None
+    footing_start_pattern: str | None    = None
     footing_strip_offset: int            = 0
 
-    input_path: Optional[Path]           = None
-    output_path: Optional[Path]          = None
+    input_path: Path | None              = None
+    output_path: Path | None             = None
 
     preformatted_unicode_columns: int    = 80
 
-    enabled_formatters: list[str]        = field(default_factory=list)   
+    enabled_formatters: list[str]        = field(default_factory=list[str])   
 
 # Base Formatter Classes 
 class LineFormatter(ABC):
-    name: str
-    description: str
-    valid_types: list[str]
-    
+    def __init__(self, name: str, description: str, valid_types: list[str]):
+        self.name: str = name
+        self.description: str = description
+        self.valid_types: list[str] = valid_types
+
+    @classmethod
+    @abstractmethod
+    def create(cls) -> LineFormatter:
+        pass
+
     @abstractmethod
     def apply(self, line: str, flags: FormatterFlags) -> str:
         pass
 
 class MultilineFormatter(ABC):
-    name: str
-    description: str
-    valid_types: list[str]
-    start_pattern: str  # regex to start buffering
-    end_pattern: str    # regex to end buffering
+    def __init__(self, name: str, description: str, valid_types: list[str], start_pattern: str, end_pattern: str):
+        self.name: str = name
+        self.description: str = description
+        self.valid_types: list[str] = valid_types
+        self.start_pattern: str = start_pattern # regex to start buffering
+        self.end_pattern: str = end_pattern    # regex to end buffering
+
+    @classmethod
+    @abstractmethod
+    def create(cls) -> MultilineFormatter:
+        pass
 
     @abstractmethod
     def apply(self, buffer: list[str], config: JobConfig, flags: FormatterFlags) -> list[str]:
         pass
 
 class DocumentPreprocessor(ABC):
-    name: str
-    description: str
-    valid_types: list[str]
+    def __init__(self, name: str, description: str, valid_types: list[str]):
+        self.name: str = name
+        self.description: str = description
+        self.valid_types: list[str] = valid_types
 
+    @classmethod
+    @abstractmethod
+    def create(cls) -> DocumentPreprocessor:
+        pass
+    
     @abstractmethod
     def apply(self, document: list[str], config: JobConfig) -> list[str]:
         pass
@@ -68,6 +86,6 @@ class DocumentPreprocessor(ABC):
 # Dataclass for the formatter registry that splits it cleanly into sections for each formater type
 @dataclass
 class FormatterRegistry:
-    line: Dict[str, "LineFormatter"] = field(default_factory=dict)
-    multiline: Dict[str, "MultilineFormatter"] = field(default_factory=dict)
-    preprocessor: Dict[str, "DocumentPreprocessor"] = field(default_factory=dict)
+    line: dict[str, LineFormatter] = field(default_factory=dict[str, LineFormatter])
+    multiline: dict[str, MultilineFormatter] = field(default_factory=dict[str, MultilineFormatter])
+    preprocessor: dict[str, DocumentPreprocessor] = field(default_factory=dict[str, DocumentPreprocessor])
