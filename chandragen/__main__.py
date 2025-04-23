@@ -112,7 +112,7 @@ def run_config(args: argparse.Namespace):
     run_joblist(joblist)
     
 def list_formatters_command(args: argparse.Namespace):
-    print("Loaded formatters:")
+    print("   - - - Loaded formatters - - -")
     print("Line formatters:")
     for formatter_name in FORMATTER_REGISTRY.line:
         print(f" - {formatter_name}")
@@ -127,8 +127,36 @@ def formatter_info_command(args: argparse.Namespace):
     formatter = args.formatter
     if formatter in FORMATTER_REGISTRY.line:
         formatter_cls = FORMATTER_REGISTRY.line[formatter]
-        print(f"Line-formatter {formatter}:\nDescription:\n{formatter_cls.description}\nValid types: {formatter_cls.valid_types}\nOrigin: {formatter_cls.__module__}")
-
+        print(f"""
+Line-Formatter "{formatter}":
+    
+        -= Description =-
+{formatter_cls.description}
+Valid types: {formatter_cls.valid_types}
+Origin: {formatter_cls.__module__}
+""")
+    if formatter in FORMATTER_REGISTRY.preprocessor:
+        formatter_cls = FORMATTER_REGISTRY.preprocessor[formatter]
+        print(f"""
+Document Pre-Processor "{formatter}":
+        
+        -= Description =-
+{formatter_cls.description}
+Valid types: {formatter_cls.valid_types}
+Origin: {formatter_cls.__module__}
+""")
+    if formatter in FORMATTER_REGISTRY.multiline:
+        formatter_cls = FORMATTER_REGISTRY.multiline[formatter]
+        print(f"""
+Multi-Line Formatter "{formatter}":
+    
+       -= Description =-
+{formatter_cls.description}
+Valid types: {formatter_cls.valid_types}
+Start Regex: {formatter_cls.start_pattern} 
+End Regex: {formatter_cls.end_pattern}
+Origin: {formatter_cls.__module__}
+""")
 def main():
     print("Starting ChandraGen CLI~ :3")
 
