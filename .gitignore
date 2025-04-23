@@ -1,2 +1,99 @@
-__pycache__/
+# Byte-compiled / optimized / DLL files
 chandragen/__pycache__/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Poetry
+poetry.lock
+
+# PEP 582
+__pypackages__/
+
+# Ruff
+.ruff_cache/
+
+# Logs
+logs/
+
+# IDEs
+# PyCharm
+.idea/
+
+# Environments
+.env
+.venv
+env/
+venv/
+env.bak
+.env.*
+
+# Sensitive files
+github-private-key.pem
+
+# Miscellaneous
+/debug.csv
+config/settings*
+!config/settings.yml.example
+
+# MacOS
+.DS_Store
+
+build/
+docs-build/
+docs/site/
+site/
+
+# misc
+slim.report.json
+prisma_binaries/
