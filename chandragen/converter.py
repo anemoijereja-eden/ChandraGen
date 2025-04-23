@@ -20,12 +20,18 @@ def format_document(input_doc: list[str], config: Config) -> list[str]:
     # Main Iterator
     # this is the beating heart of this conversion tool. it runs through each line and:
     # - runs the line through a line-formatting pipeline
-    # - Pushes multi-line formatting types into a buffer to run through multi-line formatters
+    # - Pushes multi-line formatting into a buffer to run through multi-line formatters
     for line in input_doc:
         working_line = line
         if line.startswith("```"):
             flags.in_preformat = not flags.in_preformat
         working_line = apply_line_formatters(working_line, config, flags)
+        
+        if working_line.isspace() and len(flags.buffer_until_empty_line) > 0:
+            # This is an empty line, if we have something buffered until after a paragraph, dump it in!
+            output_doc += flags.buffer_until_empty_line
+            
+        # Checks if a line can start a multiline formatter
         for name in config.enabled_formatters:
             formatter = FORMATTER_REGISTRY.multiline.get(name)
             if not formatter:
@@ -34,6 +40,8 @@ def format_document(input_doc: list[str], config: Config) -> list[str]:
                 continue
             flags.in_multiline = True
             flags.active_multiline_formatter = formatter.name
+        
+        # Applies multiline formatters
         if flags.in_multiline and flags.active_multiline_formatter is not None:
             active_multiline_formatter = FORMATTER_REGISTRY.multiline.get(flags.active_multiline_formatter)
             if active_multiline_formatter is None:

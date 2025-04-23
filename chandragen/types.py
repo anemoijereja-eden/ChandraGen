@@ -13,6 +13,7 @@ class FormatterFlags:
     in_preformat: bool = False
     in_multiline: bool = False
     active_multiline_formatter: str | None = None
+    buffer_until_empty_line: list[str] = field(default_factory=list[str])
 
 # a JobConfig contains the information needed by the converter to properly convert a file.
 # JobConfigs are generated in chandragen.__main__ and passed to chandragen.converter when chandragen.converter.apply_formatting_to_file is invoked 
