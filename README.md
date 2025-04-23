@@ -18,11 +18,8 @@ ChandraGen supports external formatters via a plugin system. you can find an exa
 ChandraGen is build entirely using python simply because that's the best language I know for string manipulation. the formatting system is simple enough that it still runs pretty fast without excessive overhead despite being in python. 
 
 # TODO:
-- formatter class metadata (priority system)
 - allow formatter classes to specify a MIME type and extend file extension support at the batching steps
 - Add additional formatters to handle inline markdown links
-- Find a way to add conversion hints and gemini-only tags to an mdx document, and implement parsing for them
 - Write a Dockerfile for this, make it integrate cleanly in a docker compose that builds ChandraGen and a gemini server line Gemserv
 - Integration with common MDX-based http ssg frameworks
 - Contributor documentation
-- CI, Linting, Strict type checking, and dependency management
