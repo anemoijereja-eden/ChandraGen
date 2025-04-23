@@ -18,9 +18,7 @@ ChandraGen supports external formatters via a plugin system. you can find an exa
 ChandraGen is build entirely using python simply because that's the best language I know for string manipulation. the formatting system is simple enough that it still runs pretty fast without excessive overhead despite being in python. 
 
 # TODO:
-- Write the config parser and logic for batching and formatting files as defined by a configuration
-- formatter class metadata (built-in documentation, priority system)
-- extend formatter class system to also support multi-line formatters and document pre-processors
+- formatter class metadata (priority system)
 - allow formatter classes to specify a MIME type and extend file extension support at the batching steps
 - Add additional formatters to handle inline markdown links
 - Find a way to add conversion hints and gemini-only tags to an mdx document, and implement parsing for them
