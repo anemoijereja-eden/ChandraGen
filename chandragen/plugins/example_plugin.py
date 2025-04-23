@@ -2,8 +2,6 @@ from chandragen.types import DocumentPreprocessor, LineFormatter, MultilineForma
 from chandragen.types import FormatterFlags as Flags
 from chandragen.types import JobConfig as Config
 
-print("plugin base:", DocumentPreprocessor)
-
 
 # Plugin loader will load all LineFormatter classes in the plugin directory
 # Formatter class MUST provide a name and apply function
@@ -67,12 +65,10 @@ class ExampleMultilineFormattingPlugin(MultilineFormatter):
     
 class ExampleDocumentPreprocessingPlugin(DocumentPreprocessor):
     def __init__(self):
-        print("actual super base:", ExampleDocumentPreprocessingPlugin.__bases__)
         # Takes 3 arguments: 
         # The name is what the formatter will be referred to as in the registry, and can be placed in the config to invoke the formatter
         # Description is used for chandragen CLI documentation features. every formatter is expected to provide a human-readable description here 
         # valid_types is a list of file extensions the plugin is designed to handle.
-        print(">>> About to call super().__init__")
         super().__init__(
         "example_document_preprocessing_plugin",
         """

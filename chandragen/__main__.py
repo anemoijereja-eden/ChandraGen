@@ -24,12 +24,11 @@ def apply_blacklist(formatters: list[str] | str, blacklist: list[str] | str) -> 
 def parse_config_file(toml_path: Path) -> list[JobConfig]:
     with Path(toml_path).open("rb") as f:
         raw_config = tomllib.load(f)
-    
+    print(f"parsing config file {toml_path} and generating joblist")
     defaults = raw_config.get("defaults", {})
     default_formatters = defaults.get("formatters", [])
     default_flags = {**defaults.get("formatter_flags", {})}
     default_outdir = Path(defaults.get("output_path"))
-    print(str(default_outdir))
     default_columns = defaults.get("preformatted_text_columns", 80)
     
     job_list: list[JobConfig] = []
@@ -92,7 +91,7 @@ def parse_config_file(toml_path: Path) -> list[JobConfig]:
 # joblist runner
 def run_joblist(joblist: list[JobConfig]):
     all_formatters = [*FORMATTER_REGISTRY.line, *FORMATTER_REGISTRY.multiline, *FORMATTER_REGISTRY.preprocessor]
-    print(f"Running formatting jobs!\nAvailable formatters: {all_formatters}")
+    print("Running formatting jobs!")
     success_count: int = 0
     failure_count: int = 0
     for job in joblist:   

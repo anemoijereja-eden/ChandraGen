@@ -59,6 +59,49 @@ class ConvertBulletPointLinks(LineFormatter):
             return f"=> {link[1].replace(")\n","")} {link[0]}\n"
         return line
 
+class ConvertInlineLinks(LineFormatter):
+    def __init__(self):
+        super().__init__(
+            "convert_inline_links",
+        """
+    Convert Inline Links
+    
+    Find inline markdown links, replace them with `<label>(below)`
+    and then add a converted gemini link-line to the line buffer
+        """,
+        ["md", "mdx"]
+        )
+    
+    @classmethod
+    def create(cls) -> LineFormatter:
+        return cls()
+    
+    def apply(self, line: str, flags: Flags) -> str:
+        if line.startswith("- ["):
+            # This is a bullet point link, there's a dedicated formatter for those. leave it alone.
+            return line
+        link_regex = re.compile(r"\[(?P<label>[^\\]+)\]\((?P<url>[^)]+)\)")
+        matches: list[tuple[str, str, int, int]] = []
+        for match in link_regex.finditer(line):
+            label = match.group("label")
+            url = match.group("url")
+            start = match.start()
+            end = match.end()
+            matches.append((label, url, start, end))
+        if not matches:
+            return line
+        flags.buffer_until_empty_line += [f"=> {url} {label}\n" for label, url, _start, _end in matches]
+
+        formatted_string: str = ""
+        last_index: int = 0
+        for label, _url, start, end in matches:
+            formatted_string += line[last_index:start]
+            formatted_string += f"{label} (see below) "
+            last_index = end
+        
+        return formatted_string + line[last_index:]
+
+
 class NormalizeCodeBlocks(LineFormatter):
     def __init__(self):
         super().__init__(

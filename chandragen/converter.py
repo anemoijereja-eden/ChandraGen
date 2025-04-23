@@ -30,6 +30,7 @@ def format_document(input_doc: list[str], config: Config) -> list[str]:
         if working_line.isspace() and len(flags.buffer_until_empty_line) > 0:
             # This is an empty line, if we have something buffered until after a paragraph, dump it in!
             output_doc += flags.buffer_until_empty_line
+            flags.buffer_until_empty_line.clear()
             
         # Checks if a line can start a multiline formatter
         for name in config.enabled_formatters:

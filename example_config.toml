@@ -21,7 +21,8 @@ table_style = "unicode"
 # formatters can be removed by blacklisting
 formatters= [
     "strip_heading",
-    "strip_footing"
+    "strip_footing",
+    "convert_inline_links"
 ]
 formatter_blacklist = [
     "strip_jsx_tags",
