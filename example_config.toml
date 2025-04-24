@@ -22,7 +22,8 @@ table_style = "unicode"
 formatters= [
     "strip_heading",
     "strip_footing",
-    "convert_inline_links"
+    "convert_inline_links",
+    "strip_html_comments"
 ]
 formatter_blacklist = [
     "strip_jsx_tags",

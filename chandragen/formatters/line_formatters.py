@@ -33,6 +33,27 @@ class StripInlineMarkdown(LineFormatter):
         # regex it all out
         return f"{line[0:2]}{inline_md_pattern.sub(lambda match: inline_md_replacements[match.group(0)], line[2:])}"
 
+class StripHTMLComments(LineFormatter):
+    def __init__(self):
+        super().__init__(
+            "strip_html_comments",
+        """
+    Strip HTML Comments
+    
+    Removes all lines starting with "<!--" and ending with "-->"
+        """,
+        ["md", "mdx"]
+        )
+        
+    @classmethod
+    def create(cls) -> LineFormatter:
+        return cls()
+    
+    def apply(self, line: str, flags: Flags) -> str:
+        if line.startswith("<!--") and line.endswith("-->\n"):
+            return ""
+        return line
+        
 class ConvertBulletPointLinks(LineFormatter):
     def __init__(self):
         super().__init__(
