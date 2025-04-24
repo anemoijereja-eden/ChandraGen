@@ -36,6 +36,7 @@ ChandraGen configs are formatted using TOML, and have 3 sections:
 - defaults
 - file
 - dir
+
 defaults is where you specify config options that will automatically apply to every file formatted.
 you can specify individual files to convert with more granular options by specifying a file config subsection.
 dir config subsections will automatically convert every md or mdx file in the input path, and can be made recursive.
