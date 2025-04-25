@@ -1,0 +1,9 @@
+services:
+  chandragen:
+    build: .
+    command: ["./example_config.toml"]
+    volumes:
+      - ./plugins:/plugins
+      - ./sourcefiles:/source
+      - ./gemroot:/gemroot
+      - ./example_config.toml:/config/config.toml
