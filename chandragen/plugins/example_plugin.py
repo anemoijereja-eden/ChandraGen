@@ -1,6 +1,6 @@
+from chandragen.types import ConverterConfig as Config
 from chandragen.types import DocumentPreprocessor, LineFormatter, MultilineFormatter
 from chandragen.types import FormatterFlags as Flags
-from chandragen.types import JobConfig as Config
 
 
 # Plugin loader will load all LineFormatter classes in the plugin directory

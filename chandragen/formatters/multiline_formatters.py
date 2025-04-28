@@ -1,7 +1,7 @@
 import textwrap
 
+from chandragen.types import ConverterConfig as Config
 from chandragen.types import FormatterFlags as Flags
-from chandragen.types import JobConfig as Config
 from chandragen.types import MultilineFormatter
 
 

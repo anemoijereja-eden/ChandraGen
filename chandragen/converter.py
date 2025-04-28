@@ -1,8 +1,8 @@
 import re
 
 from chandragen.formatters import FORMATTER_REGISTRY
+from chandragen.types import ConverterConfig as Config
 from chandragen.types import FormatterFlags as Flags
-from chandragen.types import JobConfig as Config
 
 
 def apply_line_formatters(line: str, config: Config, flags: Flags) -> str:
@@ -12,7 +12,18 @@ def apply_line_formatters(line: str, config: Config, flags: Flags) -> str:
             line = formatter.apply(line, flags)
     return line
 
+def apply_preprocessors(document: list[str], config: Config) -> list[str]:
+    for formatter in config.enabled_formatters:
+        preprocessor = FORMATTER_REGISTRY.preprocessor.get(formatter)
+        if preprocessor:
+            document = preprocessor.apply(document, config)
+    return document
+
+
 def format_document(input_doc: list[str], config: Config) -> list[str]:
+    # Prepare the document by applying preprocessors to it
+    working_doc = apply_preprocessors(input_doc, config)
+    
     #Global registers for the iteration logic to use
     multiline_buffer: list[str]  = []     # 2D list that's used to buffer multiline formatting
     output_doc:         list[str]  = []     # The buffer for the final document
@@ -21,7 +32,7 @@ def format_document(input_doc: list[str], config: Config) -> list[str]:
     # this is the beating heart of this conversion tool. it runs through each line and:
     # - runs the line through a line-formatting pipeline
     # - Pushes multi-line formatting into a buffer to run through multi-line formatters
-    for line in input_doc:
+    for line in working_doc:
         working_line = line
         if line.startswith("```"):
             flags.in_preformat = not flags.in_preformat
@@ -68,12 +79,6 @@ def apply_formatting_to_file(config: Config) -> bool:
     # Grab the file, then split it into a 2D list for ease of manipulation
     with config.input_path.open() as f:
         input_file = f.readlines()
-
-    # Run document pre-processors before pushing it into the formatting pipeline
-    for formatter in config.enabled_formatters:
-        preprocessor = FORMATTER_REGISTRY.preprocessor.get(formatter)
-        if preprocessor:
-            input_file = preprocessor.apply(input_file, config) 
 
     # format the input doc and write the results to the output doc
     gemtext = f"{''.join(format_document(input_file, config))}"

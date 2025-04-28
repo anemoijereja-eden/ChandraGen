@@ -1,5 +1,5 @@
+from chandragen.types import ConverterConfig as Config
 from chandragen.types import DocumentPreprocessor
-from chandragen.types import JobConfig as Config
 
 # document pre-processors
 # formatters that make changes to the document before running it through the pipeline

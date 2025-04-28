@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 
 # Types used to pass data around the formatter system
@@ -15,10 +16,9 @@ class FormatterFlags:
     active_multiline_formatter: str | None = None
     buffer_until_empty_line: list[str] = field(default_factory=list[str])
 
-# a JobConfig contains the information needed by the converter to properly convert a file.
-# JobConfigs are generated in chandragen.__main__ and passed to chandragen.converter when chandragen.converter.apply_formatting_to_file is invoked 
+   
 @dataclass
-class JobConfig:
+class ConverterConfig:
     jobname: str                         = ""
     formatter_flags: dict[str, bool]     = field(default_factory=dict[str, bool])
     heading: str | None                  = None
@@ -66,7 +66,7 @@ class MultilineFormatter(ABC):
         pass
 
     @abstractmethod
-    def apply(self, buffer: list[str], config: JobConfig, flags: FormatterFlags) -> list[str]:
+    def apply(self, buffer: list[str], config: ConverterConfig, flags: FormatterFlags) -> list[str]:
         pass
 
 class DocumentPreprocessor(ABC):
@@ -81,7 +81,7 @@ class DocumentPreprocessor(ABC):
         pass
     
     @abstractmethod
-    def apply(self, document: list[str], config: JobConfig) -> list[str]:
+    def apply(self, document: list[str], config: ConverterConfig) -> list[str]:
         pass
 
 # Dataclass for the formatter registry that splits it cleanly into sections for each formater type
@@ -90,3 +90,12 @@ class FormatterRegistry:
     line: dict[str, LineFormatter] = field(default_factory=dict[str, LineFormatter])
     multiline: dict[str, MultilineFormatter] = field(default_factory=dict[str, MultilineFormatter])
     preprocessor: dict[str, DocumentPreprocessor] = field(default_factory=dict[str, DocumentPreprocessor])
+    
+# Dataclass for holding context about the currently running chandragen instance.
+@dataclass
+class SystemConfig:
+    invoked_command: str
+    config_path: Path
+    start_time: datetime
+    debug_jobs: bool = False
+    
