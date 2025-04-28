@@ -49,3 +49,39 @@ class FormatTablesAsUnicode(MultilineFormatter):
             ],
             f"└{'─'*(column_width+2)}┴{'─'*((table_width - 3) - column_width)}┘\n```\n"
         ]
+        
+class ConvertMDXImages(MultilineFormatter):
+    def __init__(self):
+        super().__init__(
+            "convert_mdx_images",
+            """
+            Convert MDX images 
+            
+            Strips MDX images in multi-line tags,
+            then uses the src and alt fields to generate a single-line link
+            """,
+            ["mdx"],
+            r"^<[Ii]mage",
+            r"^/>"
+        )
+    
+    @classmethod
+    def create(cls) -> MultilineFormatter:
+        return cls()
+    
+    def apply(self, buffer: list[str], config: Config, flags: Flags) -> list[str]:
+        keys: dict[str, str] = {}
+        for line in buffer[1:-1]:
+            clean_line = line.strip()
+            if clean_line == "" or "=" not in clean_line:
+                continue
+            key, value = clean_line.split("=", 1)
+            key = key.strip().strip("'").strip('"')
+            value = value.strip().strip("'").strip('"')
+            keys[key] = value
+            
+        try:
+            return [f"=> {keys["src"]} {keys["alt"]}"]
+        except KeyError:
+            # Just strip without converting if the tags needed to construct the link are missing
+            return []

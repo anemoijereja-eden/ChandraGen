@@ -1,12 +1,12 @@
 from collections.abc import Iterable
 from pathlib import Path
+from threading import Lock, Thread
 
 from chandragen import converter, system_config
 from chandragen.formatters import FORMATTER_REGISTRY
 from chandragen.jobs.types import ConverterJob
 from chandragen.types import ConverterConfig
 
-from threading import Thread, Lock
 
 def collect_files(path: Path, recursive: bool = False) -> Iterable[Path]:
     if recursive:

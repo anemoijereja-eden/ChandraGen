@@ -172,8 +172,9 @@ class StripJSXTags(LineFormatter):
             """
     Strip JSX Tags
     
-    Naively remove lines starting with < that aren't DOCTYPE or HTML style comments.
+    Naively remove lines starting with < and containing > that aren't DOCTYPE or HTML style comments.
     This should also remove some HTML tags, but not very well.
+    Note: This formatter may cause isues with some multi-line formatting
             """,
             ["mdx"]
         )
@@ -183,7 +184,8 @@ class StripJSXTags(LineFormatter):
         return cls()
    
     def apply(self, line: str, flags: Flags) -> str:
-        if line.strip().startswith("<") and not line.strip().startswith(("<!--", "<!DOCTYPE")):
+        clean_line = line.strip()
+        if clean_line.startswith("<") and ">" in clean_line and not clean_line.startswith(("<!--", "<!DOCTYPE")):
             return ""
         return line
 
