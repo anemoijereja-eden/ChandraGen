@@ -18,7 +18,6 @@ ChandraGen supports external formatters via a plugin system. you can find an exa
 ChandraGen is build entirely using python simply because that's the best language I know for string manipulation. the formatting system is simple enough that it still runs pretty fast without excessive overhead despite being in python. 
 
 # TODO:
-- Write a Dockerfile for this, make it integrate cleanly in a docker compose that builds ChandraGen and a gemini server line Gemserv
 - Contributor documentation
 
 ## Planned
@@ -27,9 +26,6 @@ ChandraGen is build entirely using python simply because that's the best languag
   - support for invoking ChandraGen formatters on a document to produce the results to pass to the user
   - integrated module loader with hotloading
   - handling for databases via prisma
-- Internal scheduling and triggers for document rebuilding
-  - Keeps the cache hot for faster formatting
-  - Removes reliance on external tools for build scheduling, keeps everything posiblein the central config
-  - Hook API for integration with common JS web frameworks (both frameworks build documents at the same time for content parity) 
+- API for triggering document rebuilds
 - Far down the line, possibly an integrated gemini server
 - Extensibility to support formats other than MD(X)
