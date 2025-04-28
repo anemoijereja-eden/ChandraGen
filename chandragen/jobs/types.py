@@ -7,6 +7,7 @@ from pathlib import Path
 @dataclass
 class ConverterJob:
     jobname: str
+    interval: str
     is_dir: bool
     is_recursive: bool
     input_path: Path

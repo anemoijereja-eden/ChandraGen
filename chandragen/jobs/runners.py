@@ -6,6 +6,7 @@ from chandragen.formatters import FORMATTER_REGISTRY
 from chandragen.jobs.types import ConverterJob
 from chandragen.types import ConverterConfig
 
+from threading import Thread, Lock
 
 def collect_files(path: Path, recursive: bool = False) -> Iterable[Path]:
     if recursive:
@@ -20,14 +21,14 @@ def run_config(config: ConverterConfig) -> bool:
                 print(f"Formatter not found: {i}")
     
     if converter.apply_formatting_to_file(config):
-        print(f"Successfully converted {config.jobname}!")
+        print(f"Successfully converted file {config.input_path}!")
         return True
     print(f"Failed to convert {config.jobname}!")
     return False
        
  
 def run_converter_job(job: ConverterJob):
-    print(f"Running formatter job {job.jobname}")
+    print(f"Running conversion job {job.jobname}")
     config_list: list[ConverterConfig] = []
     if job.is_dir:
         config_list += [
@@ -48,14 +49,30 @@ def run_converter_job(job: ConverterJob):
         ]
         success_count: int = 0
         failure_count: int = 0
-        for config in config_list:
+        lock = Lock()
+        threads: list[Thread] = []
+
+        def worker(config: ConverterConfig):
+            nonlocal success_count, failure_count
             if run_config(config):
-                success_count += 1
+                with lock:
+                    success_count += 1
             else:
-                failure_count += 1
+                with lock:
+                    failure_count += 1
+
+        for config in config_list:
+            thread = Thread(target=worker, args=(config,))
+            thread.start()
+            threads.append(thread)
+            
+        for thread in threads:
+            thread.join()
+
         print(f"✨ Done converting! {success_count} succeeded, {failure_count} failed.")
     else:
         config = ConverterConfig(
+                jobname = job.jobname,
                 input_path = job.input_path,
                 output_path = job.output_path,
                 enabled_formatters = job.enabled_formatters,

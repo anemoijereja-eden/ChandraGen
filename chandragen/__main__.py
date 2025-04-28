@@ -1,11 +1,11 @@
 import argparse
 import tomllib
 from pathlib import Path
+from time import sleep
 
 from chandragen import system_config
 from chandragen.formatters import FORMATTER_REGISTRY
-from chandragen.jobs.scheduler import start_scheduler
-from chandragen.jobs.types import ConverterJob
+from chandragen.jobs import ConverterJob, enter_joblist_to_scheduler
 
 
 def apply_blacklist(formatters: list[str] | str, blacklist: list[str] | str) -> list[str]:
@@ -25,7 +25,7 @@ def parse_config_file(toml_path: Path) -> list[ConverterJob]:
     default_flags = {**defaults.get("formatter_flags", {})}
     default_outdir = Path(defaults.get("output_path"))
     default_columns = defaults.get("preformatted_text_columns", 80)
-    
+    default_interval = defaults.get("interval")
     job_list: list[ConverterJob] = []
     
     for section, entry in raw_config.items():
@@ -42,6 +42,7 @@ def parse_config_file(toml_path: Path) -> list[ConverterJob]:
                 flags = {**default_flags, **subentry.get("formatter_flags", {})}
                 job_list.append(ConverterJob(
                     jobname=name,
+                    interval = subentry.get("interval", default_interval),
                     is_dir=False,
                     is_recursive=False,
                     input_path=input_path,
@@ -70,6 +71,7 @@ def parse_config_file(toml_path: Path) -> list[ConverterJob]:
                 recursive = subentry.get("recursive", False)
                 job_list.append(ConverterJob(
                         jobname = name,
+                        interval = subentry.get("interval", default_interval),
                         is_dir = True,
                         is_recursive = recursive,
                         input_path = input_path,
@@ -92,9 +94,11 @@ def run_config(args: argparse.Namespace):
     system_config.invoked_command = "run_config"
     system_config.config_path = args.config
     joblist = parse_config_file(args.config)
-    # Time to hand all this shit off
-    start_scheduler(joblist)
-    
+    enter_joblist_to_scheduler(joblist)
+    while True:
+    # Stop the program from exiting. We started the background task system already, but now there's nothing blocking execution here!
+        sleep(1000000)
+
 def list_formatters_command(args: argparse.Namespace):
     system_config.invoked_command = "list_formatters"
     print("   - - - Loaded formatters - - -")
