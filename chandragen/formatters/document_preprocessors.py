@@ -57,4 +57,61 @@ class StripFooting(DocumentPreprocessor):
         document.extend(footer)
         return document
 
-
+class ConvertFrontmatter(DocumentPreprocessor):
+    def __init__(self):
+        super().__init__(
+            "convert_frontmatter",
+            """
+            Convert Frontmatter
+            
+            Converts the frontmatter in a markdown or mdx document to a gemini-friendly heading and footing
+            """,
+            ["md", "mdx"]
+        )
+    
+    @classmethod
+    def create(cls) -> DocumentPreprocessor:
+        return cls()
+    
+    def apply(self, document: list[str], config: Config) -> list[str]:
+        if not document[0].startswith("---"):
+            # This document doesn't have a frontmatter, leave as-is.
+            return document
+        
+        frontmatter: dict[str, str] = {}
+        stripped_document: list[str] | None = None
+        
+        for index, line in enumerate(document[1:]):
+            if not line.startswith("---"):
+                key, value = line.strip().split(":")
+                frontmatter[key.strip().strip("'").strip('"')] = value.strip().strip("'").strip('"')
+            else:
+                stripped_document = document[2+index:]
+                break
+            
+        if stripped_document is None:
+            print("Error! Frontmatter does not terminate")
+            return document
+        
+        if "date" in frontmatter:
+            try:
+                by = frontmatter["author"]
+            except KeyError:
+                by = ""
+            stripped_document.append(f"""
+{"-"*20}
+Written {by} on {frontmatter["date"]}
+            """)
+        
+        if "title" in frontmatter:
+            try:
+                subtitle = frontmatter["description"]
+            except KeyError:
+                subtitle = ""
+            header = f"""
+# {frontmatter["title"]}
+{subtitle}
+{"-"*20}\n
+"""
+            return [header, *stripped_document]
+        return stripped_document
