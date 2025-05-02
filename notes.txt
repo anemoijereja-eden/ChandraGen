@@ -1,0 +1,14 @@
+To-do:
+- New directory structure: pipeline, with formatters and peridot substitution engine as subdirs
+- Peridot substitution engine: insert engine into overall pipeline after existing formatter infra.
+  - dynamic substitution module system
+  - standard handler class, with support for inline, full-line, and multi-line substitutions as subclass methods
+  - config options to specify substitution aliases, default substitution module options, etc.
+  - support for adding substitution modules via the plugin loader
+
+Future extensibility:
+- structure allows for easy migration to a fully dynamic approach
+
+Development for later phase plans:
+- fully modular dynamic pipeline
+- integrate peridot tightly with phase 3 (CGI frameworks)

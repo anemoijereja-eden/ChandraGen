@@ -36,12 +36,26 @@ class ConverterConfig:
 
     enabled_formatters: list[str]        = field(default_factory=list[str])   
 
-# Base Formatter Classes 
+# Base Formatter Classes
+# name: specifies how the formatter will be called and entered to the registry
+# description: used for internal documentation tools, has no bearing on functionality.
+# valid_types: list of file extensions the formatter is good for. currently unimplemented.
+# priority: Stores a number from 0 to 5 specifying where the formatter belongs in the pipeline. this will be used to sort the registry and determine the order they run in.
+# levels:
+# 0: Critical           -   Preprocess metadata, fix anything outright broken
+# 1: Structural cleanup -   Fix anything that looks weird but is overall fine
+# 2: Content Formatters -   Convert in-line formatting
+# 3: Cosmetic           -   Fix minor style issues
+# 4: Postprocessors     -   small, minor tweaks to the final document
+# 5: Optional           -   clean up minor formatting issues like extra spaces or newlines
+# 255: No Priority      -   Default assigned to formatters where order does not matter and you don't care enough to set it.
+
 class LineFormatter(ABC):
-    def __init__(self, name: str, description: str, valid_types: list[str]):
+    def __init__(self, name: str, description: str, valid_types: list[str], priority: int = 255):
         self.name: str = name
         self.description: str = description
         self.valid_types: list[str] = valid_types
+        self.priority: int = priority
 
     @classmethod
     @abstractmethod
@@ -53,12 +67,13 @@ class LineFormatter(ABC):
         pass
 
 class MultilineFormatter(ABC):
-    def __init__(self, name: str, description: str, valid_types: list[str], start_pattern: str, end_pattern: str):
+    def __init__(self, name: str, description: str, valid_types: list[str], start_pattern: str, end_pattern: str, priority: int = 255):
         self.name: str = name
         self.description: str = description
         self.valid_types: list[str] = valid_types
         self.start_pattern: str = start_pattern # regex to start buffering
         self.end_pattern: str = end_pattern    # regex to end buffering
+        self.priority: int = priority
 
     @classmethod
     @abstractmethod
@@ -70,10 +85,11 @@ class MultilineFormatter(ABC):
         pass
 
 class DocumentPreprocessor(ABC):
-    def __init__(self, name: str, description: str, valid_types: list[str]):
+    def __init__(self, name: str, description: str, valid_types: list[str], priority: int = 255):
         self.name: str = name
         self.description: str = description
         self.valid_types: list[str] = valid_types
+        self.priority: int = priority
 
     @classmethod
     @abstractmethod
