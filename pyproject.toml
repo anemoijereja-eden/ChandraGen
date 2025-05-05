@@ -13,7 +13,8 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "toml (>=0.10.2,<0.11.0)",
-    "apscheduler (>=3.11.0,<4.0.0)"
+    "apscheduler (>=3.11.0,<4.0.0)",
+    "sqlmodel (>=0.0.24,<0.0.25)"
 ]
 
 

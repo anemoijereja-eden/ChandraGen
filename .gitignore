@@ -98,3 +98,4 @@ site/
 slim.report.json
 prisma_binaries/
 typings
+chandragen.db
