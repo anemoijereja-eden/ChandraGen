@@ -1,3 +1,11 @@
+[system]
+# This block is used to define the behavior of core chandragen functionality.
+
+# Defines how the scheduler should operate and, if used, what format the interval field is in. options: crontab | oneshot
+# crontab: uses crontab syntax to run formatting jobs at set intervals, good for independent self-hosts
+# oneshot: runs all configured jobs immediately on startup and then exits. this mode is intended for use with tools like github actions.
+scheduler_mode = "crontab" 
+
 [defaults]
 # This block declares the default pipeline config, and can be overridden.
 formatters = [
@@ -11,6 +19,7 @@ formatters = [
 ]
 output_path = "./main_gemroot/"
 preformatted_text_columns = 80
+interval = "0 * * * *"
 
 [defaults.formatter_flags]
 table_style = "unicode"
@@ -44,8 +53,8 @@ heading = '''
 heading_end_pattern = "<!-- END doctoc generated TOC please keep comment here to allow auto update -->\n"
 heading_strip_offset = 2
 
-[dir.blog]
+#[dir.blog]
 # minimal config for a directory
-recursive = true
-input_path = "./blog/*.mdx"
-output_path = "./main_gemroot/blog/"
+#recursive = true
+#input_path = "./blog/*.mdx"
+#output_path = "./main_gemroot/blog/"

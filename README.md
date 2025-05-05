@@ -19,6 +19,10 @@ ChandraGen is build entirely using python simply because that's the best languag
 
 # TODO:
 - Contributor documentation
+- New internal scheduler
+- Peridot substitution support
+- Formatter priority support
+- Database and ORM support
 
 ## Planned
 - Integrated Perigee CGI framework

@@ -114,4 +114,4 @@ class SystemConfig:
     config_path: Path
     start_time: datetime
     debug_jobs: bool = False
-    
+    scheduler_mode: str = "unspecified"

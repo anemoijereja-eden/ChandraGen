@@ -97,3 +97,4 @@ site/
 # misc
 slim.report.json
 prisma_binaries/
+typings

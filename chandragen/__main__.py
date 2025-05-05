@@ -20,6 +20,12 @@ def parse_config_file(toml_path: Path) -> list[ConverterJob]:
     with Path(toml_path).open("rb") as f:
         raw_config = tomllib.load(f)
     print(f"parsing config file {toml_path} and generating joblist")
+    
+    # Parse out system options
+    system = raw_config.get("system", {})
+    system_config.scheduler_mode = system.get("scheduler_mode")
+    
+    # Parse out defaults
     defaults = raw_config.get("defaults", {})
     default_formatters = defaults.get("formatters", [])
     default_flags = {**defaults.get("formatter_flags", {})}
