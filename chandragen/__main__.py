@@ -4,6 +4,7 @@ from pathlib import Path
 from time import sleep
 
 from chandragen import system_config
+from chandragen.db import init_db
 from chandragen.formatters import FORMATTER_REGISTRY
 from chandragen.jobs import ConverterJob, enter_joblist_to_scheduler
 
@@ -155,6 +156,7 @@ Origin: {formatter_cls.__module__}
 """)
 def main():
     print("Starting ChandraGen CLI~ :3")
+    init_db() # ensure database is properly set up on launch
 
     parser = argparse.ArgumentParser(description="ChandraGen Static Site Generator uwu~")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -178,5 +180,4 @@ def main():
 
 
 if __name__ == "__main__":
-    
     main()
