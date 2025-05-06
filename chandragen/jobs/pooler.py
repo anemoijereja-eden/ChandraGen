@@ -193,7 +193,7 @@ class ProcessPooler:
         # Try to assign to the chosen worker. if that fails, throw the job to a random worker.
         while not assigned:
             connection.send(["assign", str(job_id)])
-            if connection.poll(timeout=5) and connection.recv == ["assign", True]:
+            if connection.poll(timeout=5) and connection.recv() == ["assign", True]:
                 return
             chosen_worker = random.choice(list(self.workers.items()))[0]
             
