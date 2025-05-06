@@ -1,9 +1,10 @@
 from collections.abc import Sequence
 from datetime import UTC, datetime
+from uuid import UUID
 
 from sqlmodel import Session, asc, desc, select
 
-from chandragen.db import get_session
+from chandragen.db import EntryNotFoundError, get_session
 from chandragen.db.models.job_queue import JobQueueEntry
 
 
@@ -16,7 +17,33 @@ class JobState:
 class JobQueueController:
     def __init__(self, session: Session | None = None):
         self.session = session or get_session()
-
+    
+    def get_jobs_by_name_and_state(self, jobname: str, state: JobState) -> list[UUID]:
+        query = (
+            select(JobQueueEntry)
+            .where(JobQueueEntry.name == jobname)
+            .where(JobQueueEntry.state == state)
+            .order_by(desc(JobQueueEntry.priority), asc(JobQueueEntry.created_at))
+            .limit(10)
+        )
+        jobs = self.session.exec(query).all()
+        return [ job.id for job in jobs ]
+        
+    def claim_job(self, job_id: UUID, worker_id: UUID):
+        entry = self.session.exec(
+            select(JobQueueEntry)
+            .where(JobQueueEntry.id == job_id)
+        ).first()
+        
+        if entry is None:
+            raise EntryNotFoundError(job_id)
+        
+        # Adds the worker UUID to the entry, and updates it in the db.
+        entry.assigned_to = worker_id
+        self.session.add(entry)
+        self.session.commit()
+        self.session.refresh(entry)
+    
     def add_job(self, job: JobQueueEntry):
         self.session.add(job)
         self.session.commit()
