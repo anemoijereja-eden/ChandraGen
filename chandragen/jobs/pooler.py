@@ -7,6 +7,7 @@ from queue import Queue
 from time import sleep
 from uuid import UUID, uuid4
 
+from chandragen.db.controllers.job_queue import JobState
 from chandragen.jobs.runners import RUNNER_REGISTRY
 
 
@@ -30,7 +31,8 @@ class WorkerProcess:
     
     def register_job(self, job: tuple[str, str, str]):
         self.job_queue.put(job)
-        
+        job_id = self.job_queue_db.get_jobs_by_name_and_state(job[0], JobState.PENDING)
+        self.job_queue_db.claim_job(job_id[0], self.id) 
     
     def setup(self):
         pass
@@ -196,4 +198,3 @@ class ProcessPooler:
             if connection.poll(timeout=5) and connection.recv() == ["assign", True]:
                 return
             chosen_worker = random.choice(list(self.workers.items()))[0]
-            

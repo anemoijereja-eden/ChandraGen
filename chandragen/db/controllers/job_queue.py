@@ -18,7 +18,7 @@ class JobQueueController:
     def __init__(self, session: Session | None = None):
         self.session = session or get_session()
     
-    def get_jobs_by_name_and_state(self, jobname: str, state: JobState) -> list[UUID]:
+    def get_jobs_by_name_and_state(self, jobname: str, state: int) -> list[UUID]:
         query = (
             select(JobQueueEntry)
             .where(JobQueueEntry.name == jobname)
@@ -40,6 +40,8 @@ class JobQueueController:
         
         # Adds the worker UUID to the entry, and updates it in the db.
         entry.assigned_to = worker_id
+        if entry.state == JobState.PENDING:
+            entry.state = JobState.IN_PROGRESS
         self.session.add(entry)
         self.session.commit()
         self.session.refresh(entry)
