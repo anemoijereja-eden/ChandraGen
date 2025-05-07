@@ -7,7 +7,7 @@ from queue import Queue
 from time import sleep
 from uuid import UUID, uuid4
 
-from chandragen.db.controllers.job_queue import JobState
+from chandragen.db.models.job_queue import JobState
 from chandragen.jobs.runners import RUNNER_REGISTRY
 
 
@@ -59,7 +59,7 @@ class WorkerProcess:
         self.running = True
         self.setup()
         while self.running or not self.job_queue.empty():
-            # handle IPC loop
+            # IPC handler loop. read incoming IPC commands, send standardized responses 
             if self.pipe.poll():
                 data = self.pipe.recv()
                 if data[0] == "add_job":
@@ -111,6 +111,7 @@ class ProcessPooler:
             sleep(self.check_interval)
     
     def worker_loop(self, worker_id: UUID, conn: Connection):
+        """ Prepares the worker process loop for worker spawning """
         worker = WorkerProcess(worker_id, conn)
         worker.run()
         
@@ -122,6 +123,7 @@ class ProcessPooler:
         self.workers[worker_id] = (worker_process, parent_conn)
 
     def _stop_worker(self, worker_id: UUID):
+        # Send an IPC command asking the worker to exit cleanly
         process, connection = self.workers[worker_id]
         connection.send(["stop"])
         if connection.poll(timeout=5):
@@ -139,6 +141,7 @@ class ProcessPooler:
                 del self.workers[worker_id]
 
     def balance_workers(self):
+        """ Tallies up worker load, adds or removes workers as needed. """
         total_capacity: int     = 0
         total_queued: int       = 0
         idle_workers: list[UUID] = [] # worker ID
@@ -179,7 +182,7 @@ class ProcessPooler:
     def assign_job_to_worker(self, job_id: UUID):
         lowest_load: int = 65535
         chosen_worker: UUID = random.choice(list(self.workers.items()))[0] # Grab the ID of a random entry from the dict to provide a sane default
-        
+        # Run through the list of active workers, query them for load, and find the one that's the least utilized.
         for worker_id in self.workers:
             status = self.get_worker_status(worker_id)
             if status[0] == "status" and status[1] is True:
