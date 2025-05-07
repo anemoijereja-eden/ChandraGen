@@ -2,8 +2,8 @@ from collections.abc import Iterable
 from pathlib import Path
 from threading import Lock, Thread
 
-from chandragen import converter, system_config
-from chandragen.formatters import FORMATTER_REGISTRY
+from chandragen import system_config
+from chandragen.formatters import FORMATTER_REGISTRY, apply_formatting_to_file
 from chandragen.jobs.runners import JobRunner, jobrunner
 from chandragen.jobs.types import ConverterJob
 from chandragen.types import ConverterConfig
@@ -24,7 +24,7 @@ class ConverterJobRunner(JobRunner):
                 if not all_formatters.__contains__(i):
                     print(f"Formatter not found: {i}")
     
-        if converter.apply_formatting_to_file(config):
+        if apply_formatting_to_file(config):
             print(f"Successfully converted file {config.input_path}!")
             return True
         print(f"Failed to convert {config.jobname}!")

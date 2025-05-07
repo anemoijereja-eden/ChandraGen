@@ -113,5 +113,6 @@ class SystemConfig:
     invoked_command: str
     config_path: Path
     start_time: datetime
+    running: bool = True
     debug_jobs: bool = False
     scheduler_mode: str = "unspecified"

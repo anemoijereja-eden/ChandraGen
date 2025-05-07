@@ -1,14 +1,11 @@
-import json
-import random
 import threading
 from multiprocessing import Pipe, Process
 from multiprocessing.connection import Connection
-from queue import Queue
 from time import sleep
+from typing import Any
 from uuid import UUID, uuid4
 
-from chandragen.db.models.job_queue import JobState
-from chandragen.jobs.runners import RUNNER_REGISTRY
+from chandragen.db.controllers.job_queue import JobQueueController
 
 
 class WorkerShutdownError(Exception):
@@ -21,29 +18,25 @@ class WorkerShutdownError(Exception):
 class WorkerProcess:
     def __init__(self, worker_id: UUID, conn: Connection):
         from chandragen.db.controllers.job_queue import JobQueueController
+        from chandragen.jobs.runners import RUNNER_REGISTRY
+        self.runners = RUNNER_REGISTRY
         self.job_queue_db = JobQueueController()
         self.id = worker_id
         self.pipe = conn
         self.running = False
-        self.thread_pool: list[threading.Thread] = []
-        self.max_queue_size = 5
-        self.job_queue: Queue[tuple[str, str, str]] = Queue() # jobname, runner, config json
-    
-    def register_job(self, job: tuple[str, str, str]):
-        self.job_queue.put(job)
-        job_id = self.job_queue_db.get_jobs_by_name_and_state(job[0], JobState.PENDING)
-        self.job_queue_db.claim_job(job_id[0], self.id) 
-    
+        self.current_job: UUID | None = None
+        self._ipc_thread = threading.Thread(target=self.handle_ipc, daemon=True)
+         
     def setup(self):
         pass
     
-    def run_job(self, job: tuple[str, str, str]):
-        runner_cls = RUNNER_REGISTRY.get(job[1])
+    def run_job(self, job: tuple[UUID, str]):
+        job_id, job_type = job
+        runner_cls = self.runners.get(job_type)
         if not runner_cls:
-            msg = f"No runner registered for job type {job[2]}"
+            msg = f"No runner registered for job type {job_type} (job id: {job_id})"
             raise ValueError(msg)
-        config = json.loads(job[2])
-        runner = runner_cls(job[0], config)
+        runner = runner_cls(job_id)
         runner.setup()
         try:
             runner.run()
@@ -51,41 +44,42 @@ class WorkerProcess:
             runner.cleanup()
         
     def cleanup(self):
-        # ensure all threads are done running before exiting the process 
-        for thread in self.thread_pool:
-            thread.join()
-        
-    def run(self):
-        self.running = True
-        self.setup()
-        while self.running or not self.job_queue.empty():
-            # IPC handler loop. read incoming IPC commands, send standardized responses 
+        pass
+    
+    def handle_ipc(self):
+        while self.running:
+        # IPC is handled as a seperate thread in the process that acts as a supervisor. 
             if self.pipe.poll():
-                data = self.pipe.recv()
-                if data[0] == "add_job":
-                    self.register_job((data[1], data[2], data[3]))
-                    self.pipe.send(["add_job", True])
-                
-                elif data[0] == "stop":
+                data: list[Any] | tuple[Any] = self.pipe.recv()
+                if not isinstance(data, (list, tuple)) or len(data) == 0:  # pyright: ignore[reportUnnecessaryIsInstance] We're using isinstance to verify it at runtime, so this is actually useful.
+                    self.pipe.send(["error", "Invalid message format"])
+                    continue
+                if data[0] == "stop":
                     self.stop()
                     self.pipe.send(["stop", True])
                 
                 elif data[0] == "status":
                     self.pipe.send([
-                        "status",
-                        True,
-                        self.job_queue.qsize(),
-                        self.max_queue_size,
-                        self.running,
+                    "status",
+                    True,
+                    self.current_job,
+                    self.running,
                     ])
                 else:
                     self.pipe.send([data[0], False])
-                
-            job = self.job_queue.get(timeout=5)
+            sleep(0.1) 
+    
+    def run(self):
+        self.running = True
+        self.setup()
+        self._ipc_thread.start()
+        while self.running:
+            job = self.job_queue_db.claim_next_pending_job(self.id)
             if job:
-                job_thread = threading.Thread(target=self.run_job, args=(job,))
-                job_thread.start()
-                self.thread_pool.append(job_thread)
+                job_id, _job_type = job
+                self.current_job = job_id
+                self.run_job(job)
+                self.current_job = None
             else:
                 sleep(10)
         self.cleanup()
@@ -98,6 +92,7 @@ class ProcessPooler:
         self.min_workers = min_workers
         self.max_workers = max_workers
         self.check_interval = check_interval
+        self.job_queue_db = JobQueueController()
         
         self.workers: dict[UUID, tuple[Process, Connection]] = {}
     
@@ -122,8 +117,10 @@ class ProcessPooler:
         worker_process.start()
         self.workers[worker_id] = (worker_process, parent_conn)
 
-    def _stop_worker(self, worker_id: UUID):
+    def stop_worker(self, worker_id: UUID):
         # Send an IPC command asking the worker to exit cleanly
+        if worker_id not in self.workers:
+            return
         process, connection = self.workers[worker_id]
         connection.send(["stop"])
         if connection.poll(timeout=5):
@@ -141,63 +138,33 @@ class ProcessPooler:
                 del self.workers[worker_id]
 
     def balance_workers(self):
-        """ Tallies up worker load, adds or removes workers as needed. """
-        total_capacity: int     = 0
-        total_queued: int       = 0
-        idle_workers: list[UUID] = [] # worker ID
+        """ Checks worker load, adds or removes workers as needed. """
+        # Fetch the queue status from the database controller
+        _pending_count, in_progress_count, ratio = self.job_queue_db.get_queue_status()
+        total_workers = len(self.workers)
+        worker_load_ratio = in_progress_count / total_workers
         
-        for worker_id, (_process, connection) in self.workers.items():
-            try:
-                connection.send(["status"])
-                if connection.poll(timeout = 1):
-                    response = connection.recv()
-                    if response[0] == "status" and response[1] is True:
-                        queue_size = response[2]
-                        max_queue = response[3]
-                        running = response[4]
-                        
-                        total_capacity += max_queue
-                        total_queued += queue_size
-                        if queue_size == 0 and running:
-                            idle_workers.append(worker_id)     
-            except Exception:
-                self._stop_worker(worker_id)
-        
-        # Check if we're overloaded or near capacity, add more workers if we are.
-        if total_queued >= total_capacity * .8 and len(self.workers) < self.max_workers :
+        #if more than 25% of the jobs in the queue are pending, and 80% or more of to workers are going, spawn a worker.
+        if (
+            ratio > .25 
+            and worker_load_ratio >= .8
+            and total_workers < self.max_workers
+        ):
             self.spawn_worker()
         
-        # Check if we're underloaded and above minimum. scale back if we are.
-        if total_queued < total_capacity // 2 and len(self.workers) > self.min_workers:
-            for worker_id in idle_workers:
-                self._stop_worker(worker_id)
-    
+        # if there aren't many pending jobs (<1%), scale back the pooler 
+        if (
+            ratio < .01
+            and worker_load_ratio <= .5
+            and total_workers > self.min_workers
+        ):
+            worker_to_stop = next(iter(self.workers.keys()))
+            if worker_to_stop:
+                self.stop_worker(worker_to_stop)
+        
     def get_worker_status(self, worker_id: UUID) -> list[str | bool | int]:
         _process, connection = self.workers[worker_id]
         connection.send(["status"])
         if connection.poll(timeout=5):
             return connection.recv()
         return ["no response", False]
-    
-    def assign_job_to_worker(self, job_id: UUID):
-        lowest_load: int = 65535
-        chosen_worker: UUID = random.choice(list(self.workers.items()))[0] # Grab the ID of a random entry from the dict to provide a sane default
-        # Run through the list of active workers, query them for load, and find the one that's the least utilized.
-        for worker_id in self.workers:
-            status = self.get_worker_status(worker_id)
-            if status[0] == "status" and status[1] is True:
-                queue_size = status[2]
-                _max_queue_size = status[3]
-                running = status [4]
-                if running is True and type(queue_size) is int and queue_size < lowest_load:
-                    lowest_load = queue_size
-                    chosen_worker = worker_id
-                
-        _process, connection = self.workers[chosen_worker]
-        assigned = False
-        # Try to assign to the chosen worker. if that fails, throw the job to a random worker.
-        while not assigned:
-            connection.send(["assign", str(job_id)])
-            if connection.poll(timeout=5) and connection.recv() == ["assign", True]:
-                return
-            chosen_worker = random.choice(list(self.workers.items()))[0]

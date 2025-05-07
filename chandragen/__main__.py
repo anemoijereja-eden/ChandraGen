@@ -6,7 +6,7 @@ from time import sleep
 from chandragen import system_config
 from chandragen.db import init_db
 from chandragen.formatters import FORMATTER_REGISTRY
-from chandragen.jobs import ConverterJob, enter_joblist_to_scheduler
+from chandragen.jobs import ConverterJob, scheduler
 
 
 def apply_blacklist(formatters: list[str] | str, blacklist: list[str] | str) -> list[str]:
@@ -101,7 +101,7 @@ def run_config(args: argparse.Namespace):
     system_config.invoked_command = "run_config"
     system_config.config_path = args.config
     joblist = parse_config_file(args.config)
-    enter_joblist_to_scheduler(joblist)
+    scheduler.run_scheduler(joblist)
     while True:
     # Stop the program from exiting. We started the background task system already, but now there's nothing blocking execution here!
         sleep(1000000)

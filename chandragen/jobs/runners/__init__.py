@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
+from uuid import UUID
 
 
 class JobRunner(ABC):
-    def __init__(self, job_name: str, config: dict[str, str]):
-        self.job_name = job_name
-        self.config = config
-        
+    def __init__(self, job_id: UUID):
+       self.job_id = job_id
+     
     @abstractmethod
     def setup(self) -> None:
         pass
