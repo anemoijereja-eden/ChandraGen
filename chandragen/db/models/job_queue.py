@@ -1,8 +1,15 @@
 from datetime import UTC, datetime
+from enum import IntEnum
 from uuid import UUID, uuid4
 
 from sqlmodel import Field, SQLModel
 
+
+class JobState(IntEnum):
+    PENDING = 0
+    IN_PROGRESS = 1
+    COMPLETED = 2
+    FAILED = 3 
 
 class JobQueueEntry(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
@@ -14,6 +21,6 @@ class JobQueueEntry(SQLModel, table=True):
     started_at: datetime | None = Field(default=None, description="When the job actually began execution")
     
     assigned_to: UUID | None = Field(default=None, description="What worker process has ownership of a queued job")
-    state: int = Field(default=0, description="Integer representing the current job state, where 0 is not started, 1 is in-progress, 2 is completed, and 3 is failed.")
+    state: JobState = Field(default=0, description="Integer representing the current job state, where 0 is not started, 1 is in-progress, 2 is completed, and 3 is failed.")
 
     priority: int = Field(default=0, description="Optional priority system for the queue (higher = sooner)")
