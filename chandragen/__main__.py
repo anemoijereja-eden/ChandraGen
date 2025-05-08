@@ -6,7 +6,8 @@ from time import sleep
 from chandragen import system_config
 from chandragen.db import init_db
 from chandragen.formatters import FORMATTER_REGISTRY
-from chandragen.jobs import ConverterJob, scheduler
+from chandragen.jobs import scheduler
+from chandragen.jobs.runners.formatter import FormatterJob
 
 
 def apply_blacklist(formatters: list[str] | str, blacklist: list[str] | str) -> list[str]:
@@ -17,7 +18,7 @@ def apply_blacklist(formatters: list[str] | str, blacklist: list[str] | str) -> 
     return [f for f in formatters if f not in blacklist]
 
 #Parse a config file and generate a joblist with configs to push to the file converter
-def parse_config_file(toml_path: Path) -> list[ConverterJob]:
+def parse_config_file(toml_path: Path) -> list[FormatterJob]:
     with Path(toml_path).open("rb") as f:
         raw_config = tomllib.load(f)
     print(f"parsing config file {toml_path} and generating joblist")
@@ -33,7 +34,7 @@ def parse_config_file(toml_path: Path) -> list[ConverterJob]:
     default_outdir = Path(defaults.get("output_path"))
     default_columns = defaults.get("preformatted_text_columns", 80)
     default_interval = defaults.get("interval")
-    job_list: list[ConverterJob] = []
+    job_list: list[FormatterJob] = []
     
     for section, entry in raw_config.items():
         if section == "defaults":
@@ -47,7 +48,7 @@ def parse_config_file(toml_path: Path) -> list[ConverterJob]:
                 blacklist = subentry.get("formatter_blacklist", [])
                 final_formatters = apply_blacklist(formatters, blacklist)
                 flags = {**default_flags, **subentry.get("formatter_flags", {})}
-                job_list.append(ConverterJob(
+                job_list.append(FormatterJob(
                     jobname=name,
                     interval = subentry.get("interval", default_interval),
                     is_dir=False,
@@ -76,7 +77,7 @@ def parse_config_file(toml_path: Path) -> list[ConverterJob]:
                 flags = {**default_flags, **subentry.get("formatter_flags", {})}
                 # Collect and batch all of the files suggested by the config entry
                 recursive = subentry.get("recursive", False)
-                job_list.append(ConverterJob(
+                job_list.append(FormatterJob(
                         jobname = name,
                         interval = subentry.get("interval", default_interval),
                         is_dir = True,
@@ -102,9 +103,6 @@ def run_config(args: argparse.Namespace):
     system_config.config_path = args.config
     joblist = parse_config_file(args.config)
     scheduler.run_scheduler(joblist)
-    while True:
-    # Stop the program from exiting. We started the background task system already, but now there's nothing blocking execution here!
-        sleep(1000000)
 
 def list_formatters_command(args: argparse.Namespace):
     system_config.invoked_command = "list_formatters"

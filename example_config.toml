@@ -4,7 +4,7 @@
 # Defines how the scheduler should operate and, if used, what format the interval field is in. options: crontab | oneshot
 # crontab: uses crontab syntax to run formatting jobs at set intervals, good for independent self-hosts
 # oneshot: runs all configured jobs immediately on startup and then exits. this mode is intended for use with tools like github actions.
-scheduler_mode = "crontab" 
+scheduler_mode = "oneshot" 
 
 [defaults]
 # This block declares the default pipeline config, and can be overridden.

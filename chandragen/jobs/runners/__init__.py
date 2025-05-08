@@ -1,10 +1,27 @@
+import json
 from abc import ABC, abstractmethod
 from uuid import UUID
 
+from chandragen.db.controllers.job_queue import JobQueueController
+from chandragen.db.models.job_queue import JobQueueEntry
+from chandragen.jobs import Job
 
-class JobRunner(ABC):
+
+class BaseJobRunner(ABC):
+    @abstractmethod
     def __init__(self, job_id: UUID):
-       self.job_id = job_id
+        pass
+    
+
+class JobRunner[J: Job](BaseJobRunner):
+    job_class: type[J]  # to be specified by subclasses!
+
+    def __init__(self, job_id: UUID):
+        self.job_id = job_id
+        self.job_queue_db = JobQueueController()
+        self.job_entry: JobQueueEntry | None = self.job_queue_db.get_job_by_id(job_id)
+        config_dict = json.loads(self.job_entry.config_json)
+        self.job = self.job_class.model_validate(config_dict)  # 💫 automagically typed!
      
     @abstractmethod
     def setup(self) -> None:
@@ -18,10 +35,11 @@ class JobRunner(ABC):
     def cleanup(self) -> None:
         pass
     
-RUNNER_REGISTRY: dict[str, type[JobRunner]] = {}
+RUNNER_REGISTRY: dict[str, type[BaseJobRunner]] = {}
 
+# decorator that loads jobtypes into the registry
 def jobrunner(name: str):
-    def wrapper(cls: type[JobRunner]):
+    def wrapper(cls: type[BaseJobRunner]):
         RUNNER_REGISTRY[name] = cls
         return cls
     return wrapper

@@ -4,7 +4,7 @@ from uuid import UUID
 
 from sqlmodel import Session, asc, desc, func, select
 
-from chandragen.db import get_session
+from chandragen.db import EntryNotFoundError, get_session
 from chandragen.db.models.job_queue import JobQueueEntry, JobState
 
 
@@ -12,6 +12,15 @@ from chandragen.db.models.job_queue import JobQueueEntry, JobState
 class JobQueueController:
     def __init__(self, session: Session | None = None):
         self.session = session or get_session()
+    
+    def get_job_by_id(self, job_id: UUID) -> JobQueueEntry:
+        entry = self.session.exec(
+            select(JobQueueEntry)
+            .where(JobQueueEntry.id == job_id)
+        ).first()
+        if entry is not None:
+            return entry
+        raise EntryNotFoundError(job_id)
     
     def get_jobs_by_name_and_state(self, jobname: str, state: JobState) -> list[UUID]:
         query = (
