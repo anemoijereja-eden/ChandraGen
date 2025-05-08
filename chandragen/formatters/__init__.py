@@ -2,10 +2,15 @@ import importlib
 import pkgutil
 import re
 
+from chandragen.formatters.types import (
+    DocumentPreprocessor,
+    FormatterConfig,
+    FormatterRegistry,
+    LineFormatter,
+    MultilineFormatter,
+)
+from chandragen.formatters.types import FormatterFlags as Flags
 from chandragen.plugins import import_all_plugins
-from chandragen.types import ConverterConfig as Config
-from chandragen.types import DocumentPreprocessor, FormatterRegistry, LineFormatter, MultilineFormatter
-from chandragen.types import FormatterFlags as Flags
 
 
 def import_builtin_formatters():
@@ -44,14 +49,14 @@ def build_formatter_registry() -> FormatterRegistry:
 FORMATTER_REGISTRY: FormatterRegistry = build_formatter_registry()
 
 
-def apply_line_formatters(line: str, config: Config, flags: Flags) -> str:
+def apply_line_formatters(line: str, config: FormatterConfig, flags: Flags) -> str:
     for name in config.enabled_formatters:
         formatter = FORMATTER_REGISTRY.line.get(name)
         if formatter:
             line = formatter.apply(line, flags)
     return line
 
-def apply_preprocessors(document: list[str], config: Config) -> list[str]:
+def apply_preprocessors(document: list[str], config: FormatterConfig) -> list[str]:
     for formatter in config.enabled_formatters:
         preprocessor = FORMATTER_REGISTRY.preprocessor.get(formatter)
         if preprocessor:
@@ -59,7 +64,7 @@ def apply_preprocessors(document: list[str], config: Config) -> list[str]:
     return document
 
 
-def format_document(input_doc: list[str], config: Config) -> list[str]:
+def format_document(input_doc: list[str], config: FormatterConfig) -> list[str]:
     # Prepare the document by applying preprocessors to it
     working_doc = apply_preprocessors(input_doc, config)
     
@@ -110,7 +115,7 @@ def format_document(input_doc: list[str], config: Config) -> list[str]:
             output_doc.append(working_line)
     return output_doc
  
-def apply_formatting_to_file(config: Config) -> bool:
+def apply_formatting_to_file(config: FormatterConfig) -> bool:
     if config.input_path is None or config.output_path is None:
         print("Error! input or output path not specified")
         return False
