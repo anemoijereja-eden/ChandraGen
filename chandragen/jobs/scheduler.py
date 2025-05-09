@@ -3,7 +3,10 @@ from threading import Event, Thread
 from time import sleep
 from typing import TypeVar
 
+from loguru import logger
+
 from chandragen import system_config
+import chandragen
 from chandragen.db.controllers.job_queue import JobQueueController
 from chandragen.db.models.job_queue import JobQueueEntry
 from chandragen.jobs import Job
@@ -17,12 +20,14 @@ def run_scheduler(jobs: list[J]):
     elif system_config.scheduler_mode == "cron":
         scheduler = CronScheduler()
     else:
-        print(f"Err: valid scheduler not specified; {system_config.scheduler_mode} is invalid")
+        logger.error(f"Err: valid scheduler not specified; {system_config.scheduler_mode} is invalid")
         return
+    logger.info(f"Invoking scheduler {scheduler}")
     scheduler.start()   
     while system_config.running:
         scheduler.tick()
         sleep(10)
+    logger.info(f"scheduler {scheduler} exiting")
     scheduler.stop()
 
 
@@ -34,8 +39,8 @@ class JobScheduler(ABC):
         self._pooler_thread = Thread(target=self.pooler.start, daemon=True)
         self._pooler_thread.start()
        
-    def add_job_to_queue(self, job_config: J):
-        """Serialize and enqueue a job for processing~"""
+    def add_job_to_queue(self, job_config: J): #pyright:ignore InvalidTypeVarUse  we do actually want this for genericization.
+        """Serialize and enqueue a job for processing"""
         job_config_json = job_config.model_dump_json()
         job_type = job_config.job_type
         job_name = job_config.jobname
@@ -69,7 +74,7 @@ class OneShotScheduler(JobScheduler):
         # Queue all jobs uwu
         for job in self.jobs:
             self.add_job_to_queue(job)
-        print(f"✨ Queued {len(self.jobs)} jobs, nya~")
+        logger.info(f"✨ Queued {len(self.jobs)} jobs, nya~")
         self.shutdown_event.clear()
 
     def tick(self):
@@ -78,11 +83,14 @@ class OneShotScheduler(JobScheduler):
         jobs_in_flight = pending + in_progress
         
         if not jobs_in_flight:
-            print("💫 All jobs complete~ Time for a catnap :3")
+            logger.info("💫 All jobs complete~ Time for a catnap :3")
+            updated_config = system_config
+            updated_config.running = False
+            chandragen.update_system_config(updated_config)
             self.shutdown_event.set()
 
     def stop(self):
-        print("🛑 Scheduler stopped~")
+        logger.info("🛑 Scheduler stopped~")
         self.shutdown_event.set()
 
 

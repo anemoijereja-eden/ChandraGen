@@ -83,14 +83,14 @@ class JobQueueController:
                     asc(JobQueueEntry.created_at),
         ).limit(limit)).all()
 
-    def mark_job_complete(self, job_id: int):
+    def mark_job_complete(self, job_id: UUID):
         job = self.session.get(JobQueueEntry, job_id)
         if job:
             job.state = JobState.COMPLETED
             self.session.commit()
         return job
 
-    def mark_job_failed(self, job_id: int):
+    def mark_job_failed(self, job_id: UUID):
         job = self.session.get(JobQueueEntry, job_id)
         if job:
             job.state = JobState.FAILED

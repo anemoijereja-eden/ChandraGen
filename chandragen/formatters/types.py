@@ -90,7 +90,7 @@ class FormatterRegistry:
 @dataclass
 class FormatterConfig:
     jobname: str                         = ""
-    formatter_flags: dict[str, bool | int | str]     = field(default_factory=dict[str, bool])
+    formatter_flags: dict[str, bool | int | str]     = field(default_factory=dict[str, bool | int | str])
     heading: str | None                  = None
     heading_end_pattern: str | None      = None
     heading_strip_offset: int            = 0

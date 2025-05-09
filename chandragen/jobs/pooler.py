@@ -5,6 +5,9 @@ from time import sleep
 from typing import Any
 from uuid import UUID, uuid4
 
+from loguru import logger
+
+from chandragen import system_config
 from chandragen.db.controllers.job_queue import JobQueueController
 
 
@@ -17,8 +20,14 @@ class WorkerShutdownError(Exception):
 
 class WorkerProcess:
     def __init__(self, worker_id: UUID, conn: Connection):
+        # worker level imports
+        from loguru import logger
+
         from chandragen.db.controllers.job_queue import JobQueueController
         from chandragen.jobs.runners import RUNNER_REGISTRY
+        
+        logger.debug(f"Starting worker process {worker_id}!")
+        self.logger = logger
         self.runners = RUNNER_REGISTRY
         self.job_queue_db = JobQueueController()
         self.id = worker_id
@@ -32,6 +41,7 @@ class WorkerProcess:
     
     def run_job(self, job: tuple[UUID, str]):
         job_id, job_type = job
+        self.logger.debug(f"worker {self.id} attempting to run job {job_id} of type {job_type}")
         runner_cls = self.runners.get(job_type)
         if not runner_cls:
             msg = f"No runner registered for job type {job_type} (job id: {job_id})"
@@ -42,15 +52,17 @@ class WorkerProcess:
             runner.run()
         finally:
             runner.cleanup()
+        self.logger.debug(f"Worker {self.id} completed job {job_id}")
         
     def cleanup(self):
-        pass
+        logger.debug(f"worker {self.id} is shutting down")
     
     def handle_ipc(self):
         while self.running:
         # IPC is handled as a seperate thread in the process that acts as a supervisor. 
             if self.pipe.poll():
                 data: list[Any] | tuple[Any] = self.pipe.recv()
+                self.logger.debug(f"worker {self.id} recieved ipc message {data}")
                 if not isinstance(data, (list, tuple)) or len(data) == 0:  # pyright: ignore[reportUnnecessaryIsInstance] We're using isinstance to verify it at runtime, so this is actually useful.
                     self.pipe.send(["error", "Invalid message format"])
                     continue
@@ -77,6 +89,7 @@ class WorkerProcess:
             job = self.job_queue_db.claim_next_pending_job(self.id)
             if job:
                 job_id, _job_type = job
+                self.logger.debug(f"worker {self.id} claimed job {job_id}")
                 self.current_job = job_id
                 self.run_job(job)
                 self.current_job = None
@@ -101,10 +114,13 @@ class ProcessPooler:
         for _ in range(self.min_workers):
             self.spawn_worker()
         
-        while True:
+        while system_config.running:
             self.balance_workers()
             sleep(self.check_interval)
-    
+        logger.info("chandragen is exiting, shutting down all workers!")
+        for worker in list(self.workers.keys()):
+           self.stop_worker(worker) 
+        
     def worker_loop(self, worker_id: UUID, conn: Connection):
         """ Prepares the worker process loop for worker spawning """
         worker = WorkerProcess(worker_id, conn)

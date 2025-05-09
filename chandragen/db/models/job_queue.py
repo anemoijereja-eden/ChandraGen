@@ -12,6 +12,7 @@ class JobState(IntEnum):
     FAILED = 3 
 
 class JobQueueEntry(SQLModel, table=True):
+    
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     name: str = Field(index=True, description="Human-readable job name or label")
     job_type: str = Field(description="The registered job runner type to execute this entry")

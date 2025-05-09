@@ -3,8 +3,10 @@ from uuid import UUID
 
 from sqlmodel import Session, SQLModel, create_engine
 
-# This import is purely to run class decorators, it's not unused even if your IDE says it is.
-from chandragen.db import models  # noqa: F401
+from chandragen import system_config
+
+# This import is purely to run class decorators
+from chandragen.db import models  #noqa: F401 #pyright:ignore
 
 
 class EntryNotFoundError(Exception):
@@ -13,7 +15,7 @@ class EntryNotFoundError(Exception):
         self.entry_id = entry_id
         super().__init__(f"Entry {self.entry_id} does not exist in the database!")
 
-DATABASE_URL = "sqlite:///./chandragen.db"
+DATABASE_URL = system_config.db_url
 
 # Create the engine at import time (persistent)
 engine = create_engine(DATABASE_URL, echo=False)

@@ -2,6 +2,8 @@ from collections.abc import Iterable
 from pathlib import Path
 from threading import Lock, Thread
 
+from loguru import logger
+
 from chandragen import system_config
 from chandragen.formatters import FORMATTER_REGISTRY, apply_formatting_to_file
 from chandragen.formatters.types import FormatterConfig
@@ -42,21 +44,21 @@ class FormatterJobRunner(JobRunner[FormatterJob]):
 
     def run_config(self, config: FormatterConfig) -> bool:
         all_formatters = [*FORMATTER_REGISTRY.line, *FORMATTER_REGISTRY.multiline, *FORMATTER_REGISTRY.preprocessor]
-        if system_config.debug_jobs:
+        if system_config.log_level == "DEBUG":
             for i in config.enabled_formatters:
                 if not all_formatters.__contains__(i):
-                    print(f"Formatter not found: {i}")
+                    logger.warning(f"Formatter not found: {i}")
     
         if apply_formatting_to_file(config):
-            print(f"Successfully converted file {config.input_path}!")
+            logger.info(f"Successfully converted file {config.input_path}!")
             return True
-        print(f"Failed to convert {config.jobname}!")
+        logger.error(f"Failed to convert {config.jobname}!")
         return False
        
  
     def run(self):
         job = self.job
-        print(f"Running conversion job {job.jobname}")
+        logger.info(f"Running formatting job {job.jobname} with strategy {"directory globbing" if job.is_dir else "single file"}")
         config_list: list[FormatterConfig] = []
         if job.is_dir:
             config_list += [
@@ -97,7 +99,12 @@ class FormatterJobRunner(JobRunner[FormatterJob]):
             for thread in threads:
                 thread.join()
 
-            print(f"✨ Done converting! {success_count} succeeded, {failure_count} failed.")
+            logger.info(f"✨ Done converting! {success_count} succeeded, {failure_count} failed.")
+            if failure_count == 0:
+                self.job_queue_db.mark_job_complete(self.job_id)
+            else:
+                self.job_queue_db.mark_job_failed(self.job_id)
+        
         else:
             config = FormatterConfig(
                     jobname = job.jobname,
@@ -113,7 +120,14 @@ class FormatterJobRunner(JobRunner[FormatterJob]):
                     footing_start_pattern = job.footing_start_pattern,
                     footing_strip_offset = job.footing_strip_offset
             )
-            print(f"Job {job.jobname} {"converted successfully" if self.run_config(config) else "failed to convert"}")
+            logger.info(f"Job {job.jobname} invoking formatter module!")
+            if self.run_config(config):
+                logger.info(f"Job {job.jobname} converted successfully")
+                self.job_queue_db.mark_job_complete(self.job_id)
+            else:
+                logger.error(f"Job {job.jobname} failed to convert")
+                self.job_queue_db.mark_job_failed(self.job_id)
+                
     def setup(self):
         pass
     def cleanup(self) -> None:
