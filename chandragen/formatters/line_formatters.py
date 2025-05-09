@@ -1,7 +1,7 @@
 import re
 
-from chandragen.types import FormatterFlags as Flags
-from chandragen.types import LineFormatter
+from chandragen.formatters.types import FormatterFlags as Flags
+from chandragen.formatters.types import LineFormatter
 
 
 # Internal line formatters:

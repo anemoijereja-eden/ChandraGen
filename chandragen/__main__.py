@@ -1,12 +1,16 @@
 import argparse
+import sys
 import tomllib
 from pathlib import Path
-from time import sleep
 
+from loguru import logger
+
+import chandragen
 from chandragen import system_config
 from chandragen.db import init_db
 from chandragen.formatters import FORMATTER_REGISTRY
-from chandragen.jobs import ConverterJob, enter_joblist_to_scheduler
+from chandragen.jobs import scheduler
+from chandragen.jobs.runners.formatter import FormatterJob
 
 
 def apply_blacklist(formatters: list[str] | str, blacklist: list[str] | str) -> list[str]:
@@ -17,10 +21,10 @@ def apply_blacklist(formatters: list[str] | str, blacklist: list[str] | str) -> 
     return [f for f in formatters if f not in blacklist]
 
 #Parse a config file and generate a joblist with configs to push to the file converter
-def parse_config_file(toml_path: Path) -> list[ConverterJob]:
+def parse_config_file(toml_path: Path) -> list[FormatterJob]:
     with Path(toml_path).open("rb") as f:
         raw_config = tomllib.load(f)
-    print(f"parsing config file {toml_path} and generating joblist")
+    logger.info(f"parsing config file {toml_path} and generating joblist")
     
     # Parse out system options
     system = raw_config.get("system", {})
@@ -33,7 +37,7 @@ def parse_config_file(toml_path: Path) -> list[ConverterJob]:
     default_outdir = Path(defaults.get("output_path"))
     default_columns = defaults.get("preformatted_text_columns", 80)
     default_interval = defaults.get("interval")
-    job_list: list[ConverterJob] = []
+    job_list: list[FormatterJob] = []
     
     for section, entry in raw_config.items():
         if section == "defaults":
@@ -47,7 +51,7 @@ def parse_config_file(toml_path: Path) -> list[ConverterJob]:
                 blacklist = subentry.get("formatter_blacklist", [])
                 final_formatters = apply_blacklist(formatters, blacklist)
                 flags = {**default_flags, **subentry.get("formatter_flags", {})}
-                job_list.append(ConverterJob(
+                job_list.append(FormatterJob(
                     jobname=name,
                     interval = subentry.get("interval", default_interval),
                     is_dir=False,
@@ -76,7 +80,7 @@ def parse_config_file(toml_path: Path) -> list[ConverterJob]:
                 flags = {**default_flags, **subentry.get("formatter_flags", {})}
                 # Collect and batch all of the files suggested by the config entry
                 recursive = subentry.get("recursive", False)
-                job_list.append(ConverterJob(
+                job_list.append(FormatterJob(
                         jobname = name,
                         interval = subentry.get("interval", default_interval),
                         is_dir = True,
@@ -98,16 +102,17 @@ def parse_config_file(toml_path: Path) -> list[ConverterJob]:
 
    
 def run_config(args: argparse.Namespace):
-    system_config.invoked_command = "run_config"
-    system_config.config_path = args.config
+    updated_config = system_config
+    updated_config.invoked_command = "run_config"
+    updated_config.config_path = args.config
+    chandragen.update_system_config(updated_config)
     joblist = parse_config_file(args.config)
-    enter_joblist_to_scheduler(joblist)
-    while True:
-    # Stop the program from exiting. We started the background task system already, but now there's nothing blocking execution here!
-        sleep(1000000)
+    scheduler.run_scheduler(joblist)
 
 def list_formatters_command(args: argparse.Namespace):
-    system_config.invoked_command = "list_formatters"
+    updated_config = system_config
+    updated_config.invoked_command = "list_formatters"
+    chandragen.update_system_config(updated_config)
     print("   - - - Loaded formatters - - -")
     print("Line formatters:")
     for formatter_name in FORMATTER_REGISTRY.line:
@@ -120,7 +125,9 @@ def list_formatters_command(args: argparse.Namespace):
         print(f" - {formatter_name}")
 
 def formatter_info_command(args: argparse.Namespace):
-    system_config.invoked_command = "formatter_info"
+    updated_config = system_config
+    updated_config.invoked_command = "formatter_info"
+    chandragen.update_system_config(updated_config)
     formatter = args.formatter
     if formatter in FORMATTER_REGISTRY.line:
         formatter_cls = FORMATTER_REGISTRY.line[formatter]
@@ -155,7 +162,7 @@ End Regex: {formatter_cls.end_pattern}
 Origin: {formatter_cls.__module__}
 """)
 def main():
-    print("Starting ChandraGen CLI~ :3")
+    logger.debug("Starting ChandraGen CLI~ :3")
     init_db() # ensure database is properly set up on launch
 
     parser = argparse.ArgumentParser(description="ChandraGen Static Site Generator uwu~")
@@ -180,4 +187,16 @@ def main():
 
 
 if __name__ == "__main__":
+    # Clear any default handlers to avoid duplicate logs
+    logger.remove()
+
+    # Add custom handler (stdout)
+    logger.add(
+        sink=sys.stdout,
+        level=system_config.log_level,
+        format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
+        backtrace=True,
+        diagnose=True,
+    )
+
     main()

@@ -1,10 +1,21 @@
 from pathlib import Path
+from uuid import UUID
 
 from sqlmodel import Session, SQLModel, create_engine
 
-from chandragen.db import models  # noqa: F401
+from chandragen import system_config
 
-DATABASE_URL = "sqlite:///./chandragen.db"
+# This import is purely to run class decorators
+from chandragen.db import models  #noqa: F401 #pyright:ignore
+
+
+class EntryNotFoundError(Exception):
+    """Raised when a database entry cannot be found"""
+    def __init__(self, entry_id: UUID):
+        self.entry_id = entry_id
+        super().__init__(f"Entry {self.entry_id} does not exist in the database!")
+
+DATABASE_URL = system_config.db_url
 
 # Create the engine at import time (persistent)
 engine = create_engine(DATABASE_URL, echo=False)

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 
 # Types used to pass data around the formatter system
@@ -16,26 +15,7 @@ class FormatterFlags:
     active_multiline_formatter: str | None = None
     buffer_until_empty_line: list[str] = field(default_factory=list[str])
 
-   
-@dataclass
-class ConverterConfig:
-    jobname: str                         = ""
-    formatter_flags: dict[str, bool]     = field(default_factory=dict[str, bool])
-    heading: str | None                  = None
-    heading_end_pattern: str | None      = None
-    heading_strip_offset: int            = 0
-
-    footing: str | None                  = None
-    footing_start_pattern: str | None    = None
-    footing_strip_offset: int            = 0
-
-    input_path: Path | None              = None
-    output_path: Path | None             = None
-
-    preformatted_unicode_columns: int    = 80
-
-    enabled_formatters: list[str]        = field(default_factory=list[str])   
-
+ 
 # Base Formatter Classes
 # name: specifies how the formatter will be called and entered to the registry
 # description: used for internal documentation tools, has no bearing on functionality.
@@ -81,7 +61,7 @@ class MultilineFormatter(ABC):
         pass
 
     @abstractmethod
-    def apply(self, buffer: list[str], config: ConverterConfig, flags: FormatterFlags) -> list[str]:
+    def apply(self, buffer: list[str], config: FormatterConfig, flags: FormatterFlags) -> list[str]:
         pass
 
 class DocumentPreprocessor(ABC):
@@ -97,7 +77,7 @@ class DocumentPreprocessor(ABC):
         pass
     
     @abstractmethod
-    def apply(self, document: list[str], config: ConverterConfig) -> list[str]:
+    def apply(self, document: list[str], config: FormatterConfig) -> list[str]:
         pass
 
 # Dataclass for the formatter registry that splits it cleanly into sections for each formater type
@@ -106,12 +86,24 @@ class FormatterRegistry:
     line: dict[str, LineFormatter] = field(default_factory=dict[str, LineFormatter])
     multiline: dict[str, MultilineFormatter] = field(default_factory=dict[str, MultilineFormatter])
     preprocessor: dict[str, DocumentPreprocessor] = field(default_factory=dict[str, DocumentPreprocessor])
-    
-# Dataclass for holding context about the currently running chandragen instance.
+ 
 @dataclass
-class SystemConfig:
-    invoked_command: str
-    config_path: Path
-    start_time: datetime
-    debug_jobs: bool = False
-    scheduler_mode: str = "unspecified"
+class FormatterConfig:
+    jobname: str                         = ""
+    formatter_flags: dict[str, bool | int | str]     = field(default_factory=dict[str, bool | int | str])
+    heading: str | None                  = None
+    heading_end_pattern: str | None      = None
+    heading_strip_offset: int            = 0
+
+    footing: str | None                  = None
+    footing_start_pattern: str | None    = None
+    footing_strip_offset: int            = 0
+
+    input_path: Path | None              = None
+    output_path: Path | None             = None
+
+    preformatted_unicode_columns: int    = 80
+
+    enabled_formatters: list[str]        = field(default_factory=list[str])   
+
+

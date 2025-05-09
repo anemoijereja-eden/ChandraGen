@@ -14,7 +14,10 @@ requires-python = ">=3.13"
 dependencies = [
     "toml (>=0.10.2,<0.11.0)",
     "apscheduler (>=3.11.0,<4.0.0)",
-    "sqlmodel (>=0.0.24,<0.0.25)"
+    "sqlmodel (>=0.0.24,<0.0.25)",
+    "loguru (>=0.7.3,<0.8.0)",
+    "python-dotenv (>=1.1.0,<2.0.0)",
+    "psycopg2 (>=2.9.10,<3.0.0)"
 ]
 
 
@@ -44,7 +47,7 @@ target-version = "py313"
 [tool.ruff.lint]
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 fixable = ["ALL"]
-ignore = ["E501", "N814", "PLR0913", "PLR2004"]
+ignore = ["E501", "N814", "PLR0913", "PLR2004", "UP038"]
 select = [
   "I",     # isort
   "E",     # pycodestyle-error
@@ -70,6 +73,7 @@ select = [
   "RSE",   # flake8-raise
   "ICN",   # flake8-import-conventions
   "RUF",   # ruff
+  "T201",  # prints
 ]
 unfixable = []
 
