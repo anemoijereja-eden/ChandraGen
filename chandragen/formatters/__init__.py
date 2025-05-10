@@ -2,6 +2,8 @@ import importlib
 import pkgutil
 import re
 
+from loguru import logger
+
 from chandragen.formatters.types import (
     DocumentPreprocessor,
     FormatterConfig,
@@ -117,7 +119,7 @@ def format_document(input_doc: list[str], config: FormatterConfig) -> list[str]:
  
 def apply_formatting_to_file(config: FormatterConfig) -> bool:
     if config.input_path is None or config.output_path is None:
-        print("Error! input or output path not specified")
+        logger.error("Formatter error: input or output path not specified")
         return False
 
     # Grab the file, then split it into a 2D list for ease of manipulation
