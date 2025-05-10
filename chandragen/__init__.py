@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from dotenv import dotenv_values
+from loguru import logger
 from pydantic import BaseModel
 
 
@@ -13,6 +14,10 @@ class SystemConfig(BaseModel):
     running: bool = True
     scheduler_mode: str = "unspecified"
     log_level: str = "INFO"
+    log_all_sql: bool = False
+    tick_rate: float = 0.01
+    max_workers_per_pool: int = 32
+    minimum_workers_per_pool: int = 3
     class Config:
         extra = "ignore"  # ignore unknown keys if loading from larger env dict
 
@@ -25,6 +30,7 @@ def hydrate_system_config(env_path: Path = Path(".env")) -> SystemConfig:
 
 def store_system_config(env_path: Path = Path(".env")) -> None:
     config = system_config.model_dump()
+    logger.info(f"Stored global config: {config}")
     blacklist = {"running", "invoked_command", "start_time"}
     cleaned = {key: str(value) for key, value in config.items() if key not in blacklist}
 
