@@ -1,3 +1,5 @@
+from loguru import logger
+
 from chandragen.formatters.types import DocumentPreprocessor
 from chandragen.formatters.types import FormatterConfig as Config
 
@@ -23,7 +25,7 @@ class StripHeading(DocumentPreprocessor):
    
     def apply(self, document: list[str], config: Config) -> list[str]:
         if config.heading is None or config.heading_end_pattern is None:
-            print("Error! cannot strip heading without defined replacement and ending pattern")
+            logger.warning("Cannot strip heading without defined replacement and ending pattern")
             return document
         heading_end = document.index(config.heading_end_pattern) + config.heading_strip_offset
         del document[0:heading_end]
@@ -49,7 +51,7 @@ class StripFooting(DocumentPreprocessor):
 
     def apply(self, document: list[str], config: Config) -> list[str]:
         if config.footing is None or config.footing_start_pattern is None:
-            print("Error! cannot strip footing without defined replacement and starting pattern")
+            logger.warning("cannot strip footing without defined replacement and starting pattern")
             return document
         footer_start = document.index(config.footing_start_pattern) + config.footing_strip_offset
         del document[footer_start:]
@@ -90,7 +92,7 @@ class ConvertFrontmatter(DocumentPreprocessor):
                 break
             
         if stripped_document is None:
-            print("Error! Frontmatter does not terminate")
+            logger.warning("Frontmatter conversion failed!! Frontmatter does not terminate")
             return document
         
         if "date" in frontmatter:
