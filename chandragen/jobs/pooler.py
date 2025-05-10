@@ -94,14 +94,14 @@ class WorkerProcess:
                 self.run_job(job)
                 self.current_job = None
             else:
-                sleep(10)
+                sleep(0.001)
         self.cleanup()
     
     def stop(self):
         self.running = False    
     
 class ProcessPooler:
-    def __init__(self, min_workers: int = 3, max_workers: int = 16, check_interval: int = 10):
+    def __init__(self, min_workers: int = 3, max_workers: int = 16, check_interval: float = 0.01):
         self.min_workers = min_workers
         self.max_workers = max_workers
         self.check_interval = check_interval
@@ -111,6 +111,7 @@ class ProcessPooler:
     
     def start(self):
         # bring up minimal process pool
+        logger.debug(f"bringing up minimal worker pool of {self.min_workers} workers!! :3")
         for _ in range(self.min_workers):
             self.spawn_worker()
         
@@ -166,6 +167,7 @@ class ProcessPooler:
             and worker_load_ratio >= .8
             and total_workers < self.max_workers
         ):
+            logger.info("worker pool overload detected, spawning worker")
             self.spawn_worker()
         
         # if there aren't many pending jobs (<1%), scale back the pooler 
@@ -174,6 +176,7 @@ class ProcessPooler:
             and worker_load_ratio <= .5
             and total_workers > self.min_workers
         ):
+            logger.info("worker pool underloaded, terminating a worker.")
             worker_to_stop = next(iter(self.workers.keys()))
             if worker_to_stop:
                 self.stop_worker(worker_to_stop)

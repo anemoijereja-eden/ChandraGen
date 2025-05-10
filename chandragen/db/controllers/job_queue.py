@@ -2,13 +2,13 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from uuid import UUID
 
-from sqlmodel import Session, asc, desc, func, select
+from loguru import logger
+from sqlmodel import Session, asc, desc, func, select, text
 
 from chandragen.db import EntryNotFoundError, get_session
 from chandragen.db.models.job_queue import JobQueueEntry, JobState
 
 
-#TODO: add logic to set up runner from database using job uuid
 class JobQueueController:
     def __init__(self, session: Session | None = None):
         self.session = session or get_session()
@@ -66,6 +66,7 @@ class JobQueueController:
         total = pending_count + in_progress_count
         ratio: float = (pending_count / total) if total > 0 else 0.0
         
+        logger.debug(f"Checked queue status: {pending_count} jobs pending, {in_progress_count} jobs in progress")
         return pending_count, in_progress_count, ratio
         
     def add_job(self, job: JobQueueEntry):
@@ -104,4 +105,16 @@ class JobQueueController:
             ).all()
         for job in completed_jobs:
             self.session.delete(job)
+        self.session.commit()
+        
+    def tune_autovacuum(self):
+        sql = text("""
+            ALTER TABLE job_queue SET (
+                autovacuum_vacuum_scale_factor = 0.01,
+                autovacuum_vacuum_threshold = 50,
+                autovacuum_analyze_scale_factor = 0.05,
+                autovacuum_analyze_threshold = 100
+            );
+        """)
+        self.session.exec(sql) #pyright: ignore
         self.session.commit()

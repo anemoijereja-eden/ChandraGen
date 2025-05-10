@@ -107,8 +107,9 @@ def run_config(args: argparse.Namespace):
     updated_config.config_path = args.config
     chandragen.update_system_config(updated_config)
     joblist = parse_config_file(args.config)
-    scheduler.run_scheduler(joblist)
-
+    runner = scheduler.SchedulerRunner()
+    runner.run(joblist)
+    
 def list_formatters_command(args: argparse.Namespace):
     updated_config = system_config
     updated_config.invoked_command = "list_formatters"
@@ -166,6 +167,7 @@ def main():
     init_db() # ensure database is properly set up on launch
 
     parser = argparse.ArgumentParser(description="ChandraGen Static Site Generator uwu~")
+    parser.add_argument("--shell", action="store_true", help="Launch interactive shell alongside")
     subparsers = parser.add_subparsers(dest="command", required=True)
     
     # Subcommand: run-config
@@ -183,6 +185,10 @@ def main():
     info_parser.set_defaults(func=formatter_info_command)
 
     args = parser.parse_args()
+    if args.shell:
+        from chandragen.shell import InteractiveShellThread
+        shell = InteractiveShellThread()
+        shell.start()
     args.func(args)  # calls the right function depending on the subcommand
 
 
