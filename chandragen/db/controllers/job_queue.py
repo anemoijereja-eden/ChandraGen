@@ -1,8 +1,10 @@
 from collections.abc import Sequence
 from datetime import UTC, datetime
+from types import FunctionType
 from uuid import UUID
 
 from loguru import logger
+from sqlalchemy.exc import OperationalError, StatementError
 from sqlmodel import Session, asc, desc, func, select, text
 
 from chandragen.db import EntryNotFoundError, get_session
@@ -12,6 +14,19 @@ from chandragen.db.models.job_queue import JobQueueEntry, JobState
 class JobQueueController:
     def __init__(self, session: Session | None = None):
         self.session = session or get_session()
+    
+    
+    # wraps any db controller call, adds error handling!
+    def _safe_run(self, fn: FunctionType, *args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except (OperationalError, StatementError) as e:
+            logger.error(f"database controller call {fn} failed, resetting session and retrying;\n{e}")
+            self.session.rollback()
+            self.session.close()
+            self.session = get_session()
+            # you can try once more after reset
+            return fn(*args, **kwargs) 
     
     def get_job_by_id(self, job_id: UUID) -> JobQueueEntry:
         entry = self.session.exec(
@@ -66,7 +81,6 @@ class JobQueueController:
         total = pending_count + in_progress_count
         ratio: float = (pending_count / total) if total > 0 else 0.0
         
-        logger.debug(f"Checked queue status: {pending_count} jobs pending, {in_progress_count} jobs in progress")
         return pending_count, in_progress_count, ratio
         
     def add_job(self, job: JobQueueEntry):
@@ -76,13 +90,16 @@ class JobQueueController:
         return job
 
     def get_pending_jobs(self, limit: int = 10) -> Sequence[JobQueueEntry]:
-        return self.session.exec( 
+        def run():
+            return self.session.exec( 
                 select(JobQueueEntry)
                 .where(JobQueueEntry.state == JobState.PENDING)
                 .order_by(
                     desc(JobQueueEntry.priority),
                     asc(JobQueueEntry.created_at),
-        ).limit(limit)).all()
+            ).limit(limit)).all()
+        return self._safe_run(run)
+
 
     def mark_job_complete(self, job_id: UUID):
         job = self.session.get(JobQueueEntry, job_id)

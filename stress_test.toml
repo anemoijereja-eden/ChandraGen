@@ -15,7 +15,7 @@ formatters = [
     "convert_known_mdx_components",
     "strip_imports_exports",
     "strip_jsx_tags",
-    "normalize_codeblocks"
+    "normalize_code_blocks"
 ]
 output_path = "./main_gemroot/"
 preformatted_text_columns = 80
@@ -30,14 +30,13 @@ table_style = "unicode"
 # formatters can be removed by blacklisting
 formatters= [
     "strip_heading",
-    "strip_footing",
     "convert_inline_links",
     "strip_html_comments"
 ]
 formatter_blacklist = [
     "strip_jsx_tags",
     "strip_imports_exports",
-    "normalize_codeblocks",
+    "normalize_code_blocks",
     "convert_known_mdx_components"
 ]
 output_path = "./main_gemroot/code-of-conduct.gmi"
@@ -59,14 +58,13 @@ heading_strip_offset = 2
 # formatters can be removed by blacklisting
 formatters= [
     "strip_heading",
-    "strip_footing",
     "convert_inline_links",
     "strip_html_comments"
 ]
 formatter_blacklist = [
     "strip_jsx_tags",
     "strip_imports_exports",
-    "normalize_codeblocks",
+    "normalize_code_blocks",
     "convert_known_mdx_components"
 ]
 output_path = "./main_gemroot/code-of-conduct2.gmi"
@@ -88,14 +86,13 @@ heading_strip_offset = 2
 # formatters can be removed by blacklisting
 formatters= [
     "strip_heading",
-    "strip_footing",
     "convert_inline_links",
     "strip_html_comments"
 ]
 formatter_blacklist = [
     "strip_jsx_tags",
     "strip_imports_exports",
-    "normalize_codeblocks",
+    "normalize_code_blocks",
     "convert_known_mdx_components"
 ]
 output_path = "./main_gemroot/code-of-conduct3.gmi"
@@ -117,14 +114,13 @@ heading_strip_offset = 2
 # formatters can be removed by blacklisting
 formatters= [
     "strip_heading",
-    "strip_footing",
     "convert_inline_links",
     "strip_html_comments"
 ]
 formatter_blacklist = [
     "strip_jsx_tags",
     "strip_imports_exports",
-    "normalize_codeblocks",
+    "normalize_code_blocks",
     "convert_known_mdx_components"
 ]
 output_path = "./main_gemroot/code-of-conduct4.gmi"
@@ -152,7 +148,7 @@ formatters= [
 formatter_blacklist = [
     "strip_jsx_tags",
     "strip_imports_exports",
-    "normalize_codeblocks",
+    "normalize_code_blocks",
     "convert_known_mdx_components"
 ]
 output_path = "./main_gemroot/code-of-conduct5.gmi"
@@ -180,7 +176,7 @@ formatters= [
 formatter_blacklist = [
     "strip_jsx_tags",
     "strip_imports_exports",
-    "normalize_codeblocks",
+    "normalize_code_blocks",
     "convert_known_mdx_components"
 ]
 output_path = "./main_gemroot/code-of-conduct6.gmi"

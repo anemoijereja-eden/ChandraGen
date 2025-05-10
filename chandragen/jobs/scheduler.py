@@ -12,13 +12,33 @@ from chandragen.db.models.job_queue import JobQueueEntry
 from chandragen.jobs import Job
 from chandragen.jobs.pooler import ProcessPooler
 
+
+class GarbageCollector:
+    def __init__(self):
+        self.job_queue_db = JobQueueController()
+         
+    def run(self):
+        logger.debug("garbage collector thread initializing")
+        while system_config.running:
+            self.tick()
+            sleep(120)
+
+    def tick(self):
+        logger.debug("Purging completed jobs from job queue")
+        self.job_queue_db.delete_completed_jobs()        
+
 J = TypeVar("J", bound=Job)
 class SchedulerRunner:
     def __init__(self):
+        self.tick_rate = system_config.tick_rate
         # start a pooler up!
         self.pooler = ProcessPooler()
-
+        self.garbage_collector = GarbageCollector()
+        
+        self._garbage_collector_thread = Thread(target=self.garbage_collector.run, daemon=True)
         self._pooler_thread = Thread(target=self.pooler.start, daemon=True)
+
+        self._garbage_collector_thread.start()
         self._pooler_thread.start()
  
     def run(self, jobs: list[J]):
@@ -33,7 +53,7 @@ class SchedulerRunner:
         scheduler.start()   
         while system_config.running:
             scheduler.tick()
-            sleep(0.001)
+            sleep(self.tick_rate)
         logger.info(f"scheduler {scheduler} exiting")
         scheduler.stop()
 
