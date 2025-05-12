@@ -62,7 +62,7 @@ class FormatterJobRunner(JobRunner[FormatterJob]):
         logger.info(f"Running formatting job {job.jobname} with strategy {"directory globbing" if job.is_dir else "single file"}")
         if job.is_dir:
             for file in self.collect_files(job.input_path, job.is_recursive):
-                config = self.job
+                config = self.job.model_copy(deep=True)
                 config.input_path = file
                 config.is_dir = False
                 config.is_recursive = False
