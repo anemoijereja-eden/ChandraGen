@@ -96,7 +96,7 @@ class WorkerProcess(Process):
                 self.current_job = None
             else:
                 # queue miss means we can just go ahead and sleep for a second.
-                logger.debug(f"worker process {self.id} missed queue, resting for a sec")
+                #logger.debug(f"worker process {self.id} missed queue, resting for a sec")
                 sleep(0.5)
         self.cleanup()
     
@@ -119,7 +119,7 @@ class ProcessPooler:
             self.spawn_worker()
         
         while system_config.running:
-            logger.debug("ticking pooler")
+            #logger.debug("ticking pooler")
             self.clean_up_dead_workers()
             self.balance_workers()
             sleep(self.check_interval)
