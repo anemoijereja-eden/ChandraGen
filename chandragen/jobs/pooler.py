@@ -1,6 +1,7 @@
 import threading
 from multiprocessing import Pipe, Process
 from multiprocessing.connection import Connection
+from threading import Thread
 from time import sleep
 from typing import Any
 from uuid import UUID, uuid4
@@ -103,8 +104,9 @@ class WorkerProcess(Process):
     def stop(self):
         self.running = False    
     
-class ProcessPooler:
+class ProcessPooler(Thread):
     def __init__(self):
+        super().__init__()
         self.min_workers = system_config.minimum_workers_per_pool
         self.max_workers = system_config.max_workers_per_pool
         self.check_interval = system_config.tick_rate
@@ -112,7 +114,7 @@ class ProcessPooler:
         
         self.workers: dict[UUID, tuple[Process, Connection]] = {}
     
-    def start(self):
+    def run(self):
         # bring up minimal process pool
         logger.debug(f"bringing up minimal worker pool of {self.min_workers} workers!! :3")
         for _ in range(self.min_workers):

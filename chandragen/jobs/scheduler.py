@@ -10,7 +10,6 @@ from chandragen import system_config
 from chandragen.db.controllers.job_queue import JobQueueController
 from chandragen.db.models.job_queue import JobQueueEntry
 from chandragen.jobs import Job
-from chandragen.jobs.pooler import ProcessPooler
 
 
 class GarbageCollector:
@@ -32,15 +31,12 @@ class SchedulerRunner:
     def __init__(self):
         self.tick_rate = system_config.tick_rate
         # start a pooler up!
-        self.pooler = ProcessPooler()
         self.garbage_collector = GarbageCollector()
         
         self._garbage_collector_thread = Thread(target=self.garbage_collector.run, daemon=True)
-        self._pooler_thread = Thread(target=self.pooler.start, daemon=True)
 
         self._garbage_collector_thread.start()
-        self._pooler_thread.start()
- 
+        
     def run(self, jobs: list[J]):
         if system_config.scheduler_mode == "oneshot":
             scheduler = OneShotScheduler(jobs)
@@ -64,7 +60,6 @@ class JobScheduler(ABC, SchedulerRunner):
     def __init__(self):
         self.job_queue_db = JobQueueController()
         self.job_queue_db.tune_autovacuum()
-        self.pooler = ProcessPooler()
 
       
     def add_job_to_queue(self, job_config: J): #pyright:ignore InvalidTypeVarUse  we do actually want this for genericization.
