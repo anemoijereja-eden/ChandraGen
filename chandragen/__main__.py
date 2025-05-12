@@ -1,5 +1,6 @@
 import argparse
 import sys
+import time
 import tomllib
 from pathlib import Path
 
@@ -10,6 +11,7 @@ from chandragen import system_config
 from chandragen.db import init_db
 from chandragen.formatters import FORMATTER_REGISTRY
 from chandragen.jobs import scheduler
+from chandragen.jobs.pooler import ProcessPooler
 from chandragen.jobs.runners.formatter import FormatterJob
 
 
@@ -101,6 +103,13 @@ def parse_config_file(toml_path: Path) -> list[FormatterJob]:
     return job_list
 
    
+def run_pooler(args: argparse.Namespace):
+    logger.info(f"Starting dynamic pool of {system_config.minimum_workers_per_pool} to {system_config.max_workers_per_pool} worker processes ")
+    pooler = ProcessPooler()
+    pooler.start()
+    while True:
+        time.sleep(10000)
+
 def run_config(args: argparse.Namespace):
     updated_config = system_config
     updated_config.invoked_command = "run_config"
@@ -162,6 +171,8 @@ Start Regex: {formatter_cls.start_pattern}
 End Regex: {formatter_cls.end_pattern}
 Origin: {formatter_cls.__module__}
 """)
+        
+
 def main():
     logger.debug("Starting ChandraGen CLI~ :3")
     init_db() # ensure database is properly set up on launch
@@ -169,6 +180,10 @@ def main():
     parser = argparse.ArgumentParser(description="ChandraGen Static Site Generator uwu~")
     parser.add_argument("--shell", action="store_true", help="Launch interactive shell alongside")
     subparsers = parser.add_subparsers(dest="command", required=True)
+    
+    # Subcommand: run-pooler
+    pool_parser = subparsers.add_parser("run-pooler", help="Run a ChnadraGen worker process pool from the .env file")
+    pool_parser.set_defaults(func=run_pooler)
     
     # Subcommand: run-config
     run_parser = subparsers.add_parser("run-config", help="Run ChandraGen with a given config file.")
