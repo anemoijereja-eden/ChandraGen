@@ -1,10 +1,11 @@
 from collections.abc import Iterable
 from pathlib import Path
-from threading import Lock, Thread
 
 from loguru import logger
+from sqlmodel import false
 
 from chandragen import system_config
+from chandragen.db.models.job_queue import JobQueueEntry
 from chandragen.formatters import FORMATTER_REGISTRY, apply_formatting_to_file
 from chandragen.formatters.types import FormatterConfig
 from chandragen.jobs import Job
@@ -59,52 +60,22 @@ class FormatterJobRunner(JobRunner[FormatterJob]):
     def run(self):
         job = self.job
         logger.info(f"Running formatting job {job.jobname} with strategy {"directory globbing" if job.is_dir else "single file"}")
-        config_list: list[FormatterConfig] = []
         if job.is_dir:
-            config_list += [
-                FormatterConfig(
-                    jobname = f"{job.jobname}({file})",
-                    input_path = file,
-                    enabled_formatters = job.enabled_formatters,
-                    formatter_flags = job.formatter_flags,
-                    preformatted_unicode_columns = job.preformatted_unicode_columns,
-                    heading = job.heading,
-                    heading_end_pattern = job.heading_end_pattern,
-                    heading_strip_offset = job.heading_strip_offset,
-                    footing = job.footing,
-                    footing_start_pattern = job.footing_start_pattern,
-                    footing_strip_offset = job.footing_strip_offset,
-                    output_path = job.output_path / f"{file.stem}.gmi",
-                ) for file in self.collect_files(job.input_path, job.is_recursive)
-            ]
-            success_count: int = 0
-            failure_count: int = 0
-            lock = Lock()
-            threads: list[Thread] = []
-
-            def worker(config: FormatterConfig):
-                nonlocal success_count, failure_count
-                if self.run_config(config):
-                    with lock:
-                        success_count += 1
-                else:
-                    with lock:
-                        failure_count += 1
-
-            for config in config_list:
-                thread = Thread(target=worker, args=(config,))
-                thread.start()
-                threads.append(thread)
-            
-            for thread in threads:
-                thread.join()
-
-            logger.info(f"✨ Done converting! {success_count} succeeded, {failure_count} failed.")
-            if failure_count == 0:
-                self.job_queue_db.mark_job_complete(self.job_id)
-            else:
-                self.job_queue_db.mark_job_failed(self.job_id)
-        
+            for file in self.collect_files(job.input_path, job.is_recursive):
+                config = self.job
+                config.input_path = file
+                config.is_dir = False
+                config.is_recursive = False
+                config.output_path = self.job.output_path / f"{file.stem}.gmi"
+                logger.debug(f"runner {str(self.job_id)[:4]} registering single-file job for path {file}")
+                self.job_queue_db.add_job(
+                    
+                    JobQueueEntry(
+                        name=f"{job.jobname}({file})",
+                        job_type="formatter",
+                        config_json=config.model_dump_json()
+                    )
+                )
         else:
             config = FormatterConfig(
                     jobname = job.jobname,

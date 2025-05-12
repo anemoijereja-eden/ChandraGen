@@ -40,7 +40,7 @@ formatter_blacklist = [
     "convert_known_mdx_components"
 ]
 output_path = "./main_gemroot/code-of-conduct.gmi"
-input_path = "/home/thanos/dev/atl-gemini/code-of-conduct/README.md"
+input_path = "../atl-gemini/code-of-conduct/README.md"
 heading = '''
 ```
   _____        __      ____  ___  _____             __         __
@@ -67,8 +67,8 @@ formatter_blacklist = [
     "normalize_code_blocks",
     "convert_known_mdx_components"
 ]
-output_path = "./main_gemroot/code-of-conduct2.gmi"
-input_path = "/home/thanos/dev/atl-gemini/code-of-conduct/README.md"
+output_path = "./main_gemroot/code-of-conduct.gmi"
+input_path = "../atl-gemini/code-of-conduct/README.md"
 heading = '''
 ```
   _____        __      ____  ___  _____             __         __
@@ -95,8 +95,8 @@ formatter_blacklist = [
     "normalize_code_blocks",
     "convert_known_mdx_components"
 ]
-output_path = "./main_gemroot/code-of-conduct3.gmi"
-input_path = "/home/thanos/dev/atl-gemini/code-of-conduct/README.md"
+output_path = "./main_gemroot/code-of-conduct.gmi"
+input_path = "../atl-gemini/code-of-conduct/README.md"
 heading = '''
 ```
   _____        __      ____  ___  _____             __         __
@@ -123,8 +123,8 @@ formatter_blacklist = [
     "normalize_code_blocks",
     "convert_known_mdx_components"
 ]
-output_path = "./main_gemroot/code-of-conduct4.gmi"
-input_path = "/home/thanos/dev/atl-gemini/code-of-conduct/README.md"
+output_path = "./main_gemroot/code-of-conduct.gmi"
+input_path = "../atl-gemini/code-of-conduct/README.md"
 heading = '''
 ```
   _____        __      ____  ___  _____             __         __
@@ -135,13 +135,13 @@ heading = '''
 '''
 heading_end_pattern = "<!-- END doctoc generated TOC please keep comment here to allow auto update -->\n"
 heading_strip_offset = 2
+
 [file.code_of_conduct5]
 # config section for a single document
 # entry level formatters are added on top of the default formatters list.
 # formatters can be removed by blacklisting
 formatters= [
     "strip_heading",
-    "strip_footing",
     "convert_inline_links",
     "strip_html_comments"
 ]
@@ -151,8 +151,8 @@ formatter_blacklist = [
     "normalize_code_blocks",
     "convert_known_mdx_components"
 ]
-output_path = "./main_gemroot/code-of-conduct5.gmi"
-input_path = "/home/thanos/dev/atl-gemini/code-of-conduct/README.md"
+output_path = "./main_gemroot/code-of-conduct.gmi"
+input_path = "../atl-gemini/code-of-conduct/README.md"
 heading = '''
 ```
   _____        __      ____  ___  _____             __         __
@@ -163,13 +163,13 @@ heading = '''
 '''
 heading_end_pattern = "<!-- END doctoc generated TOC please keep comment here to allow auto update -->\n"
 heading_strip_offset = 2
+
 [file.code_of_conduct6]
 # config section for a single document
 # entry level formatters are added on top of the default formatters list.
 # formatters can be removed by blacklisting
 formatters= [
     "strip_heading",
-    "strip_footing",
     "convert_inline_links",
     "strip_html_comments"
 ]
@@ -179,8 +179,8 @@ formatter_blacklist = [
     "normalize_code_blocks",
     "convert_known_mdx_components"
 ]
-output_path = "./main_gemroot/code-of-conduct6.gmi"
-input_path = "/home/thanos/dev/atl-gemini/code-of-conduct/README.md"
+output_path = "./main_gemroot/code-of-conduct.gmi"
+input_path = "../atl-gemini/code-of-conduct/README.md"
 heading = '''
 ```
   _____        __      ____  ___  _____             __         __
@@ -191,8 +191,6 @@ heading = '''
 '''
 heading_end_pattern = "<!-- END doctoc generated TOC please keep comment here to allow auto update -->\n"
 heading_strip_offset = 2
-
-
 
 
 [dir.blog]
