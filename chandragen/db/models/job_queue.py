@@ -23,7 +23,7 @@ class JobQueueEntry(SQLModel, table=True):
     job_type: str = Field(description="The registered job runner type to execute this entry")
     config_json: str = Field(description="Serialized job config (JSON string)")
     
-    created_at: datetime = Field(default=datetime.now(UTC), description="Time the job was started at")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), description="Time the job was started at")
     started_at: datetime | None = Field(default=None, description="When the job actually began execution")
     
     claimed_by: UUID | None = Field(default=None, description="What worker process has ownership of a queued job")
