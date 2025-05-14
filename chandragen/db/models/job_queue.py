@@ -5,6 +5,27 @@ from uuid import UUID, uuid4
 from sqlalchemy import DDL, event
 from sqlmodel import Field, Index, SQLModel
 
+"""
+ChandraGen Job Queue Models 🚀✨
+
+This module defines the `JobQueueEntry` table, which represents the active task 
+queue for ChandraGen's job execution system.
+
+Each entry in the queue contains:
+- A unique ID and human-readable name
+- The type of job to run (for dynamic runner dispatch)
+- A serialized job configuration (JSON string)
+- Timestamps for creation and execution lifecycle
+- A worker claim field for coordination across processes
+- A `JobState` enum indicating current job progress
+
+Queue entries are prioritized using an integer-based system where higher values 
+get scheduled sooner.
+
+Speed Boost: This table is UNLOGGED, meaning Postgres skips writing it 
+to the WAL for max performance. Perfect for ephemeral workloads that don't need 
+persistence after a crash
+"""
 
 class JobState(IntEnum):
     PENDING = 0

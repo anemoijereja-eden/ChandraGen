@@ -4,6 +4,23 @@ from uuid import UUID, uuid4
 
 from sqlmodel import Field, Relationship, SQLModel
 
+"""
+ChandraGen Configuration Database Models ✨
+
+This module defines the SQLModel data structures used to represent and persist 
+ChandraGen's scheduler job configurations.
+
+Each `ConfigEntry` represents a unit of scheduled work, handled by a specific 
+scheduler type (e.g., ONESHOT, CRONJOB, or API-triggered).
+
+Config entries are grouped into `ConfigGroup`s, which:
+- Serve as logical containers for related jobs (e.g., from the same TOML section)
+- Provide default values (via `defaults_json`) to be applied to group members
+- Help users organize, export, and manage their configurations cleanly
+
+These models power the config import/export logic, scheduling queue, and 
+long-term persistence of job state across runs~ 🛠️💖
+"""
 
 class SchedulerType(IntEnum):
     ONESHOT = 0
