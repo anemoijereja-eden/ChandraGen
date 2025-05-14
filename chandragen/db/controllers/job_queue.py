@@ -1,6 +1,6 @@
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
-from types import FunctionType
+from typing import Any
 from uuid import UUID
 
 from loguru import logger
@@ -17,7 +17,7 @@ class JobQueueController:
     
     
     # wraps any db controller call, adds error handling!
-    def _safe_run(self, fn: FunctionType, *args, **kwargs):
+    def _safe_run(self, fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         try:
             return fn(*args, **kwargs)
         except (OperationalError, StatementError) as e:
@@ -88,6 +88,11 @@ class JobQueueController:
         self.session.commit()
         self.session.refresh(job)
         return job
+    
+    def add_job_list(self, joblist: list[JobQueueEntry]):
+        self.session.add_all(joblist)
+        self.session.commit()
+        return joblist
 
     def get_pending_jobs(self, limit: int = 10) -> Sequence[JobQueueEntry]:
         def run():
@@ -99,7 +104,6 @@ class JobQueueController:
                     asc(JobQueueEntry.created_at),
             ).limit(limit)).all()
         return self._safe_run(run)
-
 
     def mark_job_complete(self, job_id: UUID):
         job = self.session.get(JobQueueEntry, job_id)

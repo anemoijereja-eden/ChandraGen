@@ -2,7 +2,6 @@ from collections.abc import Iterable
 from pathlib import Path
 
 from loguru import logger
-from sqlmodel import false
 
 from chandragen import system_config
 from chandragen.db.models.job_queue import JobQueueEntry
@@ -60,22 +59,26 @@ class FormatterJobRunner(JobRunner[FormatterJob]):
     def run(self):
         job = self.job
         logger.info(f"Running formatting job {job.jobname} with strategy {"directory globbing" if job.is_dir else "single file"}")
+        # rather than executing the directory job directly, spawn new jobs for each file and let the worker pool do it!
         if job.is_dir:
+            job_queue_entries: list[JobQueueEntry] = []
             for file in self.collect_files(job.input_path, job.is_recursive):
                 config = self.job.model_copy(deep=True)
                 config.input_path = file
                 config.is_dir = False
                 config.is_recursive = False
                 config.output_path = self.job.output_path / f"{file.stem}.gmi"
+                config.jobname = f"{job.jobname}({file})"
                 logger.debug(f"runner {str(self.job_id)[:4]} registering single-file job for path {file}")
-                self.job_queue_db.add_job(
-                    
+                job_queue_entries += [
                     JobQueueEntry(
                         name=f"{job.jobname}({file})",
                         job_type="formatter",
                         config_json=config.model_dump_json()
-                    )
-                )
+                    )]
+                self.job_queue_db.add_job_list(job_queue_entries)
+                self.job_queue_db.mark_job_complete(self.job_id)
+                logger.info(f"Job {job.jobname} completed successfully! registered {len(job_queue_entries)} formatter jobs!")
         else:
             config = FormatterConfig(
                     jobname = job.jobname,
