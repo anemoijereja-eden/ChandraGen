@@ -46,7 +46,7 @@ class JobRunner[J: Job](BaseJobRunner):
     # Job Retryer
     # This is the main system for handling of failed Jobs.
     # in the event that a job fails or a worker dies, this method is used to handle the stale or failed job.
-    def retry_job(self):
+    def retry(self):
         self.cleanup()
         if self.job_entry is None:
             return
@@ -87,4 +87,3 @@ def jobrunner(name: str):
         return cls
 
     return wrapper
-
