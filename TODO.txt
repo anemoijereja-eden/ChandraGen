@@ -1,5 +1,5 @@
-- formatter priority system
-- finish out Job Runner system
-- begin work on Peridot engine
 - new config system
+- fix docker compose and dockerfile
+- release 0.1
 - Wrap gemini server inside JobRunner process, allow Chandra to handle the full gemini backend.
+- begin work on Peridot engine
