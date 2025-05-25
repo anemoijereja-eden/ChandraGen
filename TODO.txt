@@ -1,0 +1,5 @@
+- formatter priority system
+- job retry system
+- finish out Job Runner system
+- begin work on Peridot engine
+- Wrap gemini server inside JobRunner process, allow Chandra to handle the full gemini backend.
