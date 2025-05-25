@@ -1,28 +1,30 @@
 from loguru import logger
 
+from chandragen.formatters.registry import register_preprocessor
 from chandragen.formatters.types import DocumentPreprocessor
 from chandragen.formatters.types import FormatterConfig as Config
 
+
 # document pre-processors
 # formatters that make changes to the document before running it through the pipeline
-
+@register_preprocessor
 class StripHeading(DocumentPreprocessor):
     def __init__(self):
         super().__init__(
-        name = "strip_heading",
-        description = """
+            name="strip_heading",
+            description="""
     Strip Heading
     
     Removes a section of the document from the top down to a specified line,
     then inserts a preformatted heading in its place
         """,
-        valid_types = ["md", "mdx"],
+            valid_types=["md", "mdx"],
         )
-    
+
     @classmethod
     def create(cls) -> DocumentPreprocessor:
         return cls()
-   
+
     def apply(self, document: list[str], config: Config) -> list[str]:
         if config.heading is None or config.heading_end_pattern is None:
             logger.warning("Cannot strip heading without defined replacement and ending pattern")
@@ -32,19 +34,21 @@ class StripHeading(DocumentPreprocessor):
         heading = config.heading.splitlines(keepends=True)
         return heading + document
 
+
+@register_preprocessor
 class StripFooting(DocumentPreprocessor):
     def __init__(self):
         super().__init__(
-        name = "strip_footing",
-        description = """
+            name="strip_footing",
+            description="""
     Strip Footing
     
     Removes a section of the document from a specified line to the bottom,
     then inserts a preformatted footer in its place
         """,
-        valid_types = ["md", "mdx"],
+            valid_types=["md", "mdx"],
         )
-    
+
     @classmethod
     def create(cls) -> DocumentPreprocessor:
         return cls()
@@ -59,6 +63,8 @@ class StripFooting(DocumentPreprocessor):
         document.extend(footer)
         return document
 
+
+@register_preprocessor
 class ConvertFrontmatter(DocumentPreprocessor):
     def __init__(self):
         super().__init__(
@@ -68,43 +74,43 @@ class ConvertFrontmatter(DocumentPreprocessor):
             
             Converts the frontmatter in a markdown or mdx document to a gemini-friendly heading and footing
             """,
-            ["md", "mdx"]
+            ["md", "mdx"],
         )
-    
+
     @classmethod
     def create(cls) -> DocumentPreprocessor:
         return cls()
-    
+
     def apply(self, document: list[str], config: Config) -> list[str]:
         if not document[0].startswith("---"):
             # This document doesn't have a frontmatter, leave as-is.
             return document
-        
+
         frontmatter: dict[str, str] = {}
         stripped_document: list[str] | None = None
-        
+
         for index, line in enumerate(document[1:]):
             if not line.startswith("---"):
                 key, value = line.strip().split(":")
                 frontmatter[key.strip().strip("'").strip('"')] = value.strip().strip("'").strip('"')
             else:
-                stripped_document = document[2+index:]
+                stripped_document = document[2 + index :]
                 break
-            
+
         if stripped_document is None:
             logger.warning("Frontmatter conversion failed!! Frontmatter does not terminate")
             return document
-        
+
         if "date" in frontmatter:
             try:
                 by = frontmatter["author"]
             except KeyError:
                 by = ""
             stripped_document.append(f"""
-{"-"*20}
+{"-" * 20}
 Written {by} on {frontmatter["date"]}
             """)
-        
+
         if "title" in frontmatter:
             try:
                 subtitle = frontmatter["description"]
@@ -113,7 +119,8 @@ Written {by} on {frontmatter["date"]}
             header = f"""
 # {frontmatter["title"]}
 {subtitle}
-{"-"*20}\n
+{"-" * 20}\n
 """
             return [header, *stripped_document]
         return stripped_document
+
