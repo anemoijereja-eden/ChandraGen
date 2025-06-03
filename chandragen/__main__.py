@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import argparse
 import sys
 import time
@@ -22,169 +24,20 @@ def apply_blacklist(formatters: list[str] | str, blacklist: list[str] | str) -> 
         blacklist = [blacklist]
     return [f for f in formatters if f not in blacklist]
 
-#Parse a config file and generate a joblist with configs to push to the file converter
-def parse_config_file(toml_path: Path) -> list[FormatterJob]:
-    with Path(toml_path).open("rb") as f:
-        raw_config = tomllib.load(f)
-    logger.info(f"parsing config file {toml_path} and generating joblist")
-    
-    # Parse out system options
-    system = raw_config.get("system", {})
-    system_config.scheduler_mode = system.get("scheduler_mode")
-    
-    # Parse out defaults
-    defaults = raw_config.get("defaults", {})
-    default_formatters = defaults.get("formatters", [])
-    default_flags = {**defaults.get("formatter_flags", {})}
-    default_outdir = Path(defaults.get("output_path"))
-    default_columns = defaults.get("preformatted_text_columns", 80)
-    default_interval = defaults.get("interval")
-    job_list: list[FormatterJob] = []
-    
-    for section, entry in raw_config.items():
-        if section == "defaults":
-            continue
-        
-        if section == "file":
-            for name, subentry in entry.items():
-                input_path = Path(subentry.get("input_path"))
-                output_path = Path(subentry.get("output_path", default_outdir / f"{name}.gmi"))
-                formatters = default_formatters + subentry.get("formatters")
-                blacklist = subentry.get("formatter_blacklist", [])
-                final_formatters = apply_blacklist(formatters, blacklist)
-                flags = {**default_flags, **subentry.get("formatter_flags", {})}
-                job_list.append(FormatterJob(
-                    jobname=name,
-                    interval = subentry.get("interval", default_interval),
-                    is_dir=False,
-                    is_recursive=False,
-                    input_path=input_path,
-                    output_path=output_path,
-                    enabled_formatters = final_formatters,
-                    formatter_flags = flags,
-                    preformatted_unicode_columns=subentry.get("preformatted_text_columns", default_columns),
-                    heading=subentry.get("heading"),
-                    heading_end_pattern=subentry.get("heading_end_pattern"),
-                    heading_strip_offset=subentry.get("heading_strip_offset", 0),
-                    footing=subentry.get("footing"),
-                    footing_start_pattern=subentry.get("footing_end_pattern"),
-                    footing_strip_offset=subentry.get("footing_strip_offset", 0)
-                            ))
-
-        if section == "dir":
-            for name, subentry in entry.items():
-                input_path = Path(subentry.get("input_path"))
-                output_path = Path(subentry.get("output_path", default_outdir / name)) 
-                # Get the formatter lists, and combine them into one that has every specified formatter but removes blacklisted ones
-                formatters = subentry.get("formatters", default_formatters)
-                blacklist = subentry.get("formatter_blacklist", [])
-                final_formatters = apply_blacklist(formatters, blacklist)
-                flags = {**default_flags, **subentry.get("formatter_flags", {})}
-                # Collect and batch all of the files suggested by the config entry
-                recursive = subentry.get("recursive", False)
-                job_list.append(FormatterJob(
-                        jobname = name,
-                        interval = subentry.get("interval", default_interval),
-                        is_dir = True,
-                        is_recursive = recursive,
-                        input_path = input_path,
-                        output_path = output_path,
-                        enabled_formatters = final_formatters,
-                        formatter_flags = flags,
-                        preformatted_unicode_columns=subentry.get("preformatted_text_columns", default_columns),
-                        heading=subentry.get("heading"),
-                        heading_end_pattern=subentry.get("heading_end_pattern"),
-                        heading_strip_offset=subentry.get("heading_strip_offset", 0),
-                        footing=subentry.get("footing"),
-                        footing_start_pattern=subentry.get("footing_end_pattern"),
-                        footing_strip_offset=subentry.get("footing_strip_offset", 0)
-                        )   
-                )
-    return job_list
-
-   
-def run_pooler(args: argparse.Namespace):
-    logger.info(f"Starting dynamic pool of {system_config.minimum_workers_per_pool} to {system_config.max_workers_per_pool} worker processes ")
-    pooler = ProcessPooler()
-    pooler.start()
-    while True:
-        time.sleep(10000)
-
-def run_config(args: argparse.Namespace):
-    updated_config = system_config
-    updated_config.invoked_command = "run_config"
-    updated_config.config_path = args.config
-    chandragen.update_system_config(updated_config)
-    joblist = parse_config_file(args.config)
-    runner = scheduler.SchedulerRunner()
-    runner.run(joblist)
-    
-def list_formatters_command(args: argparse.Namespace):
-    updated_config = system_config
-    updated_config.invoked_command = "list_formatters"
-    chandragen.update_system_config(updated_config)
-    print("   - - - Loaded formatters - - -")
-    print("Line formatters:")
-    for formatter_name in FORMATTER_REGISTRY.line:
-        print(f" - {formatter_name}")
-    print("Multi-line formatters:")
-    for formatter_name in FORMATTER_REGISTRY.multiline:
-        print(f" - {formatter_name}")
-    print("Document Pre-Processors:")
-    for formatter_name in FORMATTER_REGISTRY.preprocessor:
-        print(f" - {formatter_name}")
-
-def formatter_info_command(args: argparse.Namespace):
-    updated_config = system_config
-    updated_config.invoked_command = "formatter_info"
-    chandragen.update_system_config(updated_config)
-    formatter = args.formatter
-    if formatter in FORMATTER_REGISTRY.line:
-        formatter_cls = FORMATTER_REGISTRY.line[formatter]
-        print(f"""
-Line-Formatter "{formatter}":
-    
-        -= Description =-
-{formatter_cls.description}
-Valid types: {formatter_cls.valid_types}
-Origin: {formatter_cls.__module__}
-""")
-    if formatter in FORMATTER_REGISTRY.preprocessor:
-        formatter_cls = FORMATTER_REGISTRY.preprocessor[formatter]
-        print(f"""
-Document Pre-Processor "{formatter}":
-        
-        -= Description =-
-{formatter_cls.description}
-Valid types: {formatter_cls.valid_types}
-Origin: {formatter_cls.__module__}
-""")
-    if formatter in FORMATTER_REGISTRY.multiline:
-        formatter_cls = FORMATTER_REGISTRY.multiline[formatter]
-        print(f"""
-Multi-Line Formatter "{formatter}":
-    
-       -= Description =-
-{formatter_cls.description}
-Valid types: {formatter_cls.valid_types}
-Start Regex: {formatter_cls.start_pattern} 
-End Regex: {formatter_cls.end_pattern}
-Origin: {formatter_cls.__module__}
-""")
-        
 
 def main():
+    set_up_logger()
     logger.debug("Starting ChandraGen CLI~ :3")
-    init_db() # ensure database is properly set up on launch
+    init_db()  # ensure database is properly set up on launch
 
     parser = argparse.ArgumentParser(description="ChandraGen Static Site Generator uwu~")
     parser.add_argument("--shell", action="store_true", help="Launch interactive shell alongside")
     subparsers = parser.add_subparsers(dest="command", required=True)
-    
+
     # Subcommand: run-pooler
     pool_parser = subparsers.add_parser("run-pooler", help="Run a ChnadraGen worker process pool from the .env file")
     pool_parser.set_defaults(func=run_pooler)
-    
+
     # Subcommand: run-config
     run_parser = subparsers.add_parser("run-config", help="Run ChandraGen with a given config file.")
     run_parser.add_argument("config", help="Path to the config file.")
@@ -202,12 +55,13 @@ def main():
     args = parser.parse_args()
     if args.shell:
         from chandragen.shell import InteractiveShellThread
+
         shell = InteractiveShellThread()
         shell.start()
     args.func(args)  # calls the right function depending on the subcommand
 
 
-if __name__ == "__main__":
+def set_up_logger():
     # Clear any default handlers to avoid duplicate logs
     logger.remove()
 
@@ -219,5 +73,181 @@ if __name__ == "__main__":
         backtrace=True,
         diagnose=True,
     )
+    logger.level("CLI", no=255, color="<green>")
 
+
+# Parse a config file and generate a joblist with configs to push to the file converter
+def parse_config_file(toml_path: Path) -> list[FormatterJob]:
+    with Path(toml_path).open("rb") as f:
+        raw_config = tomllib.load(f)
+    logger.info(f"parsing config file {toml_path} and generating joblist")
+
+    # Parse out system options
+    system = raw_config.get("system", {})
+    system_config.scheduler_mode = system.get("scheduler_mode")
+
+    # Parse out defaults
+    defaults = raw_config.get("defaults", {})
+    default_formatters = defaults.get("formatters", [])
+    default_flags = {**defaults.get("formatter_flags", {})}
+    default_outdir = Path(defaults.get("output_path"))
+    default_columns = defaults.get("preformatted_text_columns", 80)
+    default_interval = defaults.get("interval")
+    job_list: list[FormatterJob] = []
+
+    for section, entry in raw_config.items():
+        if section == "defaults":
+            continue
+
+        if section == "file":
+            for name, subentry in entry.items():
+                input_path = Path(subentry.get("input_path"))
+                output_path = Path(subentry.get("output_path", default_outdir / f"{name}.gmi"))
+                formatters = default_formatters + subentry.get("formatters")
+                blacklist = subentry.get("formatter_blacklist", [])
+                final_formatters = apply_blacklist(formatters, blacklist)
+                flags = {**default_flags, **subentry.get("formatter_flags", {})}
+                job_list.append(
+                    FormatterJob(
+                        jobname=name,
+                        interval=subentry.get("interval", default_interval),
+                        is_dir=False,
+                        is_recursive=False,
+                        input_path=input_path,
+                        output_path=output_path,
+                        enabled_formatters=final_formatters,
+                        formatter_flags=flags,
+                        preformatted_unicode_columns=subentry.get("preformatted_text_columns", default_columns),
+                        heading=subentry.get("heading"),
+                        heading_end_pattern=subentry.get("heading_end_pattern"),
+                        heading_strip_offset=subentry.get("heading_strip_offset", 0),
+                        footing=subentry.get("footing"),
+                        footing_start_pattern=subentry.get("footing_end_pattern"),
+                        footing_strip_offset=subentry.get("footing_strip_offset", 0),
+                    )
+                )
+
+        if section == "dir":
+            for name, subentry in entry.items():
+                input_path = Path(subentry.get("input_path"))
+                output_path = Path(subentry.get("output_path", default_outdir / name))
+                # Get the formatter lists, and combine them into one that has every specified formatter but removes blacklisted ones
+                formatters = subentry.get("formatters", default_formatters)
+                blacklist = subentry.get("formatter_blacklist", [])
+                final_formatters = apply_blacklist(formatters, blacklist)
+                flags = {**default_flags, **subentry.get("formatter_flags", {})}
+                # Collect and batch all of the files suggested by the config entry
+                recursive = subentry.get("recursive", False)
+                job_list.append(
+                    FormatterJob(
+                        jobname=name,
+                        interval=subentry.get("interval", default_interval),
+                        is_dir=True,
+                        is_recursive=recursive,
+                        input_path=input_path,
+                        output_path=output_path,
+                        enabled_formatters=final_formatters,
+                        formatter_flags=flags,
+                        preformatted_unicode_columns=subentry.get("preformatted_text_columns", default_columns),
+                        heading=subentry.get("heading"),
+                        heading_end_pattern=subentry.get("heading_end_pattern"),
+                        heading_strip_offset=subentry.get("heading_strip_offset", 0),
+                        footing=subentry.get("footing"),
+                        footing_start_pattern=subentry.get("footing_end_pattern"),
+                        footing_strip_offset=subentry.get("footing_strip_offset", 0),
+                    )
+                )
+    return job_list
+
+
+def run_pooler(args: argparse.Namespace):
+    logger.log(
+        "CLI",
+        f"Starting dynamic pool of {system_config.minimum_workers_per_pool} to {system_config.max_workers_per_pool} worker processes ",
+    )
+    pooler = ProcessPooler()
+    pooler.start()
+    while True:
+        time.sleep(10000)
+
+
+def run_config(args: argparse.Namespace):
+    updated_config = system_config
+    updated_config.invoked_command = "run_config"
+    updated_config.config_path = args.config
+    chandragen.update_system_config(updated_config)
+    joblist = parse_config_file(args.config)
+    runner = scheduler.SchedulerRunner()
+    runner.run(joblist)
+
+
+def list_formatters_command(args: argparse.Namespace):
+    updated_config = system_config
+    updated_config.invoked_command = "list_formatters"
+    chandragen.update_system_config(updated_config)
+    logger.log(
+        "CLI",
+        f"""
+
+        - - - Loaded formatters - - -
+    
+    Line formatters:
+        {"        ".join(f" - {name}\n" for name in FORMATTER_REGISTRY.line)}
+    Multi-line formatters:
+        {"        ".join(f" - {name}\n" for name in FORMATTER_REGISTRY.multiline)}
+    Document Pre-Processors:
+        {"        ".join(f" - {name}\n" for name in FORMATTER_REGISTRY.preprocessor)}
+    """,
+    )
+
+
+def formatter_info_command(args: argparse.Namespace):
+    updated_config = system_config
+    updated_config.invoked_command = "formatter_info"
+    chandragen.update_system_config(updated_config)
+    formatter = args.formatter
+    if formatter in FORMATTER_REGISTRY.line:
+        formatter_cls = FORMATTER_REGISTRY.line[formatter]
+        logger.log(
+            "CLI",
+            f"""
+Line-Formatter "{formatter}":
+    
+        -= Description =-
+{formatter_cls.description}
+Valid types: {formatter_cls.valid_types}
+Origin: {formatter_cls.__module__}
+""",
+        )
+    if formatter in FORMATTER_REGISTRY.preprocessor:
+        formatter_cls = FORMATTER_REGISTRY.preprocessor[formatter]
+        logger.log(
+            "CLI",
+            f"""
+Document Pre-Processor "{formatter}":
+        
+        -= Description =-
+{formatter_cls.description}
+Valid types: {formatter_cls.valid_types}
+Origin: {formatter_cls.__module__}
+""",
+        )
+    if formatter in FORMATTER_REGISTRY.multiline:
+        formatter_cls = FORMATTER_REGISTRY.multiline[formatter]
+        logger.log(
+            "CLI",
+            f"""
+Multi-Line Formatter "{formatter}":
+    
+       -= Description =-
+{formatter_cls.description}
+Valid types: {formatter_cls.valid_types}
+Start Regex: {formatter_cls.start_pattern} 
+End Regex: {formatter_cls.end_pattern}
+Origin: {formatter_cls.__module__}
+""",
+        )
+
+
+if __name__ == "__main__":
     main()
