@@ -4,7 +4,7 @@ from multiprocessing.connection import Connection
 from threading import Thread
 from time import sleep
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID, uuid4, uuid1
 
 from loguru import logger
 
@@ -47,7 +47,7 @@ class WorkerProcess(Process):
 
     def setup(self):
         self.running = True
-        self._ipc_thread = threading.Thread(target=self.handle_ipc, daemon=True)
+        self._ipc_thread = threading.Thread(name=f"worker_{self.id}_ipc", target=self.handle_ipc, daemon=True)
         self._ipc_thread.start()
         logger.debug(f"Starting worker process {self.id}!")
         self.name = f"chandra_worker_{str(self.id)[:6]}"
@@ -120,7 +120,8 @@ class ProcessPooler(Thread):
     """Creates and manages a pool of worker processes. Automatically resizes the pool based on configuration and workload, and handles cleanup for failed workers."""
 
     def __init__(self):
-        super().__init__()
+        self.id: UUID = uuid1()
+        super().__init__(name=f"pooler_{str(self.id)[:6]}")
         from chandragen.jobs.runners import RUNNER_REGISTRY
 
         self.runners = RUNNER_REGISTRY
@@ -133,7 +134,7 @@ class ProcessPooler(Thread):
 
     def run(self):
         # bring up minimal process pool
-        logger.debug(f"Bringing up minimal worker pool of {self.min_workers} workers")
+        logger.debug(f"Pooler {self.id} bringing up minimal worker pool of {self.min_workers} workers")
         for _ in range(self.min_workers):
             self.spawn_worker()
 
@@ -142,9 +143,20 @@ class ProcessPooler(Thread):
             self.clean_up_dead_workers()
             self.balance_workers()
             sleep(self.check_interval)
-        logger.info("chandragen is exiting, shutting down all workers!")
+        self.cleanup()
+
+    def cleanup(self):
+        """clean up after the pooler before fully exiting. terminates all worker processes concurrently."""
+        logger.info(f"Pooler {self.id} cleaning up worker pool!")
+        threads: list[Thread] = []
         for worker in list(self.workers.keys()):
-            self.stop_worker(worker)
+            thread = threading.Thread(
+                name=f"worker_{str(worker)[:6]}_terminator",
+                target=self.stop_worker,
+                args=(worker,),
+            )
+            thread.start()
+            threads.append(thread)
 
     def spawn_worker(self):
         worker_id = uuid4()

@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from threading import Event, Thread
 from time import sleep
 from typing import TypeVar
+from uuid import uuid1
 
 from loguru import logger
 
@@ -16,7 +17,8 @@ class GarbageCollector(Thread):
     """Garbage collector thread that periodically cleans completed jobs from the queue"""
 
     def __init__(self):
-        super().__init__()
+        self.id = uuid1()
+        super().__init__(name="garbage_collector", daemon=True)
         self.job_queue_db = JobQueueController()
 
     def run(self):

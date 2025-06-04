@@ -1,5 +1,7 @@
 import code
 import threading
+import traceback
+import sys
 from typing import Any
 
 from loguru import logger
@@ -25,7 +27,24 @@ class InteractiveShellThread(threading.Thread):
         self.helpers: dict[str, Any] = {
             "register_job": self.register_job,
             "list_jobs": self.list_jobs,
+            "list_threads": self.list_threads,
         }
+
+    def list_threads(self):
+        """List all active threads and their current state for debugging."""
+        threads_info: list[tuple[str, bool, bool, Any]] = []
+        for thread in threading.enumerate():
+            stack = sys._current_frames().get(thread.ident, None)
+            frame_info = ""
+            if stack:
+                # Getting a piece of the stack trace for insights (not a full solution, but a snippet)
+                frame_info = traceback.format_list(traceback.extract_stack(stack))
+
+            threads_info.append((thread.name, thread.is_alive(), thread.daemon, frame_info))
+            self.logger.log("SHELL", f" - {thread.name}: Alive={thread.is_alive()}, Daemon={thread.daemon}")
+            if frame_info:
+                self.logger.log("SHELL", f"  Stack: {frame_info}")
+        return threads_info
 
     def run(self):
         local_ctx = {
