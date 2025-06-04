@@ -75,7 +75,7 @@ class WorkerProcess(Process):
             # IPC is handled as a seperate thread in the process that acts as a supervisor.
             if self.pipe.poll():
                 data: list[Any] | tuple[Any] = self.pipe.recv()
-                self.logger.debug(f"worker {self.id} recieved ipc message {data}")
+                self.logger.debug(f"worker {str(self.id)[:6]} recieved ipc message {data}")
                 if not isinstance(data, (list, tuple)) or len(data) == 0:  # pyright: ignore[reportUnnecessaryIsInstance] We're using isinstance to verify it at runtime, so this is actually useful.
                     self.pipe.send(["error", "Invalid message format"])
                     continue

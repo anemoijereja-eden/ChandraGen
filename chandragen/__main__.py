@@ -190,7 +190,7 @@ def run_pooler(args: argparse.Namespace | None = None):
     pooler = ProcessPooler()
     pooler.start()
     while True:
-        time.sleep(10000)
+        time.sleep(10)
 
 
 def run_config(args: argparse.Namespace):
