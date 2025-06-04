@@ -109,4 +109,6 @@ __all__ = [
     "LineFormatter",
     "MultilineFormatter",
     "apply_formatting_to_file",
-]
+    "registry",
+
+    ]
