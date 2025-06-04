@@ -22,6 +22,13 @@ class WorkerShutdownError(Exception):
 
 
 class WorkerProcess(Process):
+    """Worker Process
+
+    A process that periodically checks the job queue and claims a job if available.
+    Runs the claimed job using the appropriate runner. Designed for high concurrency
+    situations, handling small units of work alongside many other workers.
+    """
+
     def __init__(self, worker_id: UUID, conn: Connection):
         super().__init__()
         # worker level imports
@@ -43,14 +50,14 @@ class WorkerProcess(Process):
         self._ipc_thread = threading.Thread(target=self.handle_ipc, daemon=True)
         self._ipc_thread.start()
         logger.debug(f"Starting worker process {self.id}!")
-        self.name = f"chandra_worker_{str(self.id)[:4]}"
+        self.name = f"chandra_worker_{str(self.id)[:6]}"
 
     def run_job(self, job: tuple[UUID, str]):
         job_id, job_type = job
-        self.logger.debug(f"worker {self.id} attempting to run job {job_id} of type {job_type}")
+        self.logger.debug(f"worker {str(self.id)[:6]} attempting to run job {str(job_id)[:6]} of type {job_type}")
         runner_cls = self.runners.get(job_type)
         if not runner_cls:
-            msg = f"No runner registered for job type {job_type} (job id: {job_id})"
+            msg = f"No runner registered for job type {job_type} (job id: {str(job_id)[:6]})"
             raise ValueError(msg)
         runner = runner_cls(job_id)
         runner.setup()
@@ -58,10 +65,10 @@ class WorkerProcess(Process):
             runner.run()
         finally:
             runner.cleanup()
-        self.logger.debug(f"Worker {self.id} completed job {job_id}")
+        self.logger.debug(f"Worker {str(self.id)[:6]} completed job {str(job_id)[:6]}")
 
     def cleanup(self):
-        logger.debug(f"worker {self.id} is shutting down")
+        logger.debug(f"worker {str(self.id)[:6]} is shutting down")
 
     def handle_ipc(self):
         while self.running:
@@ -95,7 +102,7 @@ class WorkerProcess(Process):
             job = self.job_queue_db.claim_next_pending_job(self.id)
             if job:
                 job_id, _job_type = job
-                self.logger.debug(f"worker {self.id} claimed job {job_id}")
+                self.logger.debug(f"worker {str(self.id)[:6]} claimed job {str(job_id)[:6]}")
                 self.current_job = job_id
                 self.run_job(job)
                 self.current_job = None
@@ -110,6 +117,8 @@ class WorkerProcess(Process):
 
 
 class ProcessPooler(Thread):
+    """Creates and manages a pool of worker processes. Automatically resizes the pool based on configuration and workload, and handles cleanup for failed workers."""
+
     def __init__(self):
         super().__init__()
         from chandragen.jobs.runners import RUNNER_REGISTRY
@@ -124,7 +133,7 @@ class ProcessPooler(Thread):
 
     def run(self):
         # bring up minimal process pool
-        logger.debug(f"bringing up minimal worker pool of {self.min_workers} workers!! :3")
+        logger.debug(f"Bringing up minimal worker pool of {self.min_workers} workers")
         for _ in range(self.min_workers):
             self.spawn_worker()
 
@@ -169,14 +178,16 @@ class ProcessPooler(Thread):
             worker_process, _worker_connection = worker
             if worker_process.is_alive():
                 continue
-            logger.warning(f"Found dead worker process {worker_id}, removing from pool.")
+            logger.warning(f"Found dead worker process {str(worker_id)[:6]}, removing from pool.")
             del self.workers[worker_id]
             claimed_job = self.job_queue_db.get_job_claimed_by(worker_id)
             if claimed_job is not None:
-                logger.warning(f"Dead worker {str(worker_id)[:4]} had claimed job {str(claimed_job.id)[:4]}, retrying!")
+                logger.warning(f"Dead worker {str(worker_id)[:6]} had claimed job {str(claimed_job.id)[:6]}, retrying!")
                 runner_cls = self.runners.get(claimed_job.job_type)
                 if not runner_cls:
-                    msg = f"No runner registered for job type {claimed_job.job_type} (job id: {claimed_job.id})"
+                    msg = (
+                        f"No runner registered for job type {claimed_job.job_type} (job id: {str(claimed_job.id)[:6]})"
+                    )
                     raise ValueError(msg)
                 runner = runner_cls(claimed_job.id)
                 runner.retry()
@@ -214,4 +225,3 @@ class ProcessPooler(Thread):
         if connection.poll(timeout=5):
             return connection.recv()
         return ["no response", False]
-

@@ -7,8 +7,9 @@ from chandragen.db.models.job_queue import JobQueueEntry
 from chandragen.jobs import Job
 
 
-# Generic base class skeleton used for typing shenanigans
 class BaseJobRunner(ABC):
+    """Generic base class skeleton used for typing"""
+
     @abstractmethod
     def __init__(self, job_id: UUID):
         pass
@@ -30,8 +31,26 @@ class BaseJobRunner(ABC):
         pass
 
 
-# JobRunner has a Job type that must be provided.
 class JobRunner[J: Job](BaseJobRunner):
+    """
+    Base class for running jobs with support for retries and failure handling.
+
+    Attributes:
+        job_class (type[J]): The class type for the job; must be specified by subclasses.
+        SHOULD_RERUN (bool): Flag to indicate whether failed jobs should be retried.
+        MAX_RETRIES (int): Maximum number of retry attempts allowed for a failed job.
+        job_id (UUID): Unique identifier for the job.
+        job_queue_db (JobQueueController): Instance for interacting with job queue database.
+        job_entry (JobQueueEntry | None): Database entry for the current job.
+        job: The job instance based on the provided job configuration.
+
+    Methods:
+        retry(): Handles the logic for retrying failed jobs, including cleanup and re-queuing or marking as failed.
+        setup(): Abstract method to be implemented by subclasses to set up the job environment.
+        run(): Abstract method to be implemented by subclasses to run the job.
+        cleanup(): Abstract method to be implemented by subclasses to clean up after job execution.
+    """
+
     job_class: type[J]  # to be specified by subclasses!
     SHOULD_RERUN = True
     MAX_RETRIES = 3
@@ -80,8 +99,9 @@ class JobRunner[J: Job](BaseJobRunner):
 RUNNER_REGISTRY: dict[str, type[BaseJobRunner]] = {}
 
 
-# decorator that loads jobtypes into the registry
 def jobrunner(name: str):
+    """Load a job runner into the registry"""
+
     def wrapper(cls: type[BaseJobRunner]):
         RUNNER_REGISTRY[name] = cls
         return cls
