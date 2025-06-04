@@ -6,7 +6,6 @@ from chandragen.formatters.registry import FORMATTER_REGISTRY, import_builtin_fo
 from chandragen.formatters.types import (
     DocumentPreprocessor,
     FormatterConfig,
-    FormatterRegistry,
     LineFormatter,
     MultilineFormatter,
 )
@@ -104,3 +103,10 @@ def apply_formatting_to_file(config: FormatterConfig) -> bool:
 
     return True
 
+
+__all__ = [
+    "DocumentPreprocessor",
+    "LineFormatter",
+    "MultilineFormatter",
+    "apply_formatting_to_file",
+]

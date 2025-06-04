@@ -1,7 +1,6 @@
 import importlib
 import pkgutil
 from typing import Any
-from chandragen.formatters import __path__
 
 from chandragen.formatters.types import (
     DocumentPreprocessor,
@@ -14,6 +13,8 @@ Formatter = type[LineFormatter | DocumentPreprocessor | MultilineFormatter]
 
 
 def import_builtin_formatters() -> None:
+    from chandragen.formatters import __path__
+
     for _finder, modname, _ispkg in pkgutil.iter_modules(__path__):
         full_name = f"{__name__}.{modname}"
         importlib.import_module(full_name)
