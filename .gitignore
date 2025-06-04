@@ -99,3 +99,6 @@ slim.report.json
 prisma_binaries/
 typings
 chandragen.db
+
+# testing dirs
+main_gemroot
