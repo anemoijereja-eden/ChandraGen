@@ -17,29 +17,37 @@ from chandragen.jobs.pooler import ProcessPooler
 from chandragen.jobs.runners.formatter import FormatterJob
 
 
-def apply_blacklist(formatters: list[str] | str, blacklist: list[str] | str) -> list[str]:
-    if isinstance(formatters, str):
-        formatters = [formatters]
-    if isinstance(blacklist, str):
-        blacklist = [blacklist]
-    return [f for f in formatters if f not in blacklist]
+class Parser(argparse.ArgumentParser):
+    """
+    A subclass of argparse.ArgumentParser to override the default
+    output behavior to use loguru for printing messages.
+
+    This modification ensures that all CLI messages are logged using
+    loguru, maintaining a consistent and professional appearance in the
+    terminal. This solution integrates the handling of regular
+    messages with logging, instead of writing directly to stdout.
+    """
+
+    def _print_message(self, message: str, file: SupportsWrite[str] | None = None) -> None:
+        logger.log("CLI", message)
 
 
 def main():
+    """Main entry point for the program, implements a cli via argparse."""
     set_up_logger()
-    logger.debug("Starting ChandraGen CLI~ :3")
+    logger.log("CLI", "Starting ChandraGen CLI")
     init_db()  # ensure database is properly set up on launch
 
-    parser = argparse.ArgumentParser(description="ChandraGen Static Site Generator uwu~")
-    parser.add_argument("--shell", action="store_true", help="Launch interactive shell alongside")
+    parser = Parser(description="Chandragen Static Capsule Generation Framework")
+    parser.add_argument("--shell", action="store_true", help="Launch interactive shell alongside the subcommand")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # Subcommand: run-pooler
-    pool_parser = subparsers.add_parser("run-pooler", help="Run a ChnadraGen worker process pool from the .env file")
+    pool_parser = subparsers.add_parser("run-pooler", help="Run a ChandraGen worker process pool from the .env file")
     pool_parser.set_defaults(func=run_pooler)
 
     # Subcommand: run-config
-    run_parser = subparsers.add_parser("run-config", help="Run ChandraGen with a given config file.")
+    run_parser = subparsers.add_parser("run-config", help="Run ChandraGen tasks from a given config file.")
     run_parser.add_argument("config", help="Path to the config file.")
     run_parser.set_defaults(func=run_config)
 
@@ -53,6 +61,8 @@ def main():
     info_parser.set_defaults(func=formatter_info_command)
 
     args = parser.parse_args()
+
+    # spawn the interactive debug shell if desired
     if args.shell:
         from chandragen.shell import InteractiveShellThread
 
@@ -62,6 +72,7 @@ def main():
 
 
 def set_up_logger():
+    """Sets up Loguru. clears default handlers, registers the main custom handler, and adds the CLI log level."""
     # Clear any default handlers to avoid duplicate logs
     logger.remove()
 
@@ -76,8 +87,18 @@ def set_up_logger():
     logger.level("CLI", no=255, color="<green>")
 
 
+def apply_blacklist(formatters: list[str] | str, blacklist: list[str] | str) -> list[str]:
+    """Helper function for the legacy TOML parser. uses a formatter whitelist and blacklist to generate a list of runnable formatters."""
+    if isinstance(formatters, str):
+        formatters = [formatters]
+    if isinstance(blacklist, str):
+        blacklist = [blacklist]
+    return [f for f in formatters if f not in blacklist]
+
+
 # Parse a config file and generate a joblist with configs to push to the file converter
 def parse_config_file(toml_path: Path) -> list[FormatterJob]:
+    """Legacy config parser system. takes a toml config and spits out formatting jobs."""
     with Path(toml_path).open("rb") as f:
         raw_config = tomllib.load(f)
     logger.info(f"parsing config file {toml_path} and generating joblist")
@@ -160,7 +181,8 @@ def parse_config_file(toml_path: Path) -> list[FormatterJob]:
     return job_list
 
 
-def run_pooler(args: argparse.Namespace):
+def run_pooler(args: argparse.Namespace | None = None):
+    """Starts a worker pool and then spins indefinitely. intended to be invoked from cli."""
     logger.log(
         "CLI",
         f"Starting dynamic pool of {system_config.minimum_workers_per_pool} to {system_config.max_workers_per_pool} worker processes ",
@@ -172,6 +194,7 @@ def run_pooler(args: argparse.Namespace):
 
 
 def run_config(args: argparse.Namespace):
+    """CLI command that uses the oneshot scheduler to run a set of Formatter jobs from a legacy TOML config"""
     updated_config = system_config
     updated_config.invoked_command = "run_config"
     updated_config.config_path = args.config
@@ -181,7 +204,9 @@ def run_config(args: argparse.Namespace):
     runner.run(joblist)
 
 
+# TODO: move the formatter system specific cli funcs into the formatter module, set up dynamic loader that adds cli subcommands from each internal module. maybe even plugin support here?
 def list_formatters_command(args: argparse.Namespace):
+    """CLI command that loads the formatter registry and then logs a cleanly formatted list"""
     updated_config = system_config
     updated_config.invoked_command = "list_formatters"
     chandragen.update_system_config(updated_config)
@@ -202,6 +227,7 @@ def list_formatters_command(args: argparse.Namespace):
 
 
 def formatter_info_command(args: argparse.Namespace):
+    """CLI command that checks the formatter registry for the requested formatter and provides the in-class metadata for it"""
     updated_config = system_config
     updated_config.invoked_command = "formatter_info"
     chandragen.update_system_config(updated_config)
@@ -249,5 +275,6 @@ Origin: {formatter_cls.__module__}
         )
 
 
+# bootstrap nonsense
 if __name__ == "__main__":
     main()
