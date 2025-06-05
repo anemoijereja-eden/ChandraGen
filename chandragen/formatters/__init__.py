@@ -158,6 +158,24 @@ class DocumentFormatter:
 
 # Function used to run the formatter module on a document.
 def apply_formatting_to_file(config: FormatterConfig) -> bool:
+    """
+    Formats a document based on the provided configuration paths.
+
+    This function reads a document from the input path specified in
+    the configuration, applies formatting to its contents using
+    FormatterConfig settings, and writes the formatted content to the
+    output path. If the input or output path is not specified, it logs
+    an error and returns False.
+
+    Args:
+        config (FormatterConfig): Configuration object containing input
+                                  and output file paths and formatting
+                                  settings.
+
+    Returns:
+        bool: True if the formatting and writing operations are successful,
+              False if there was an error with the input/output paths.
+    """
     if config.input_path is None or config.output_path is None:
         logger.error("Formatter error: input or output path not specified")
         return False
