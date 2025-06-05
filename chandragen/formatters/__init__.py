@@ -12,80 +12,151 @@ from chandragen.formatters.types import (
 from chandragen.formatters.types import FormatterFlags as Flags
 from chandragen.plugins import import_all_plugins
 
-# To avoid import order shenanigans, ensure every module is loaded immediately when the formatter system is initialized
+# Load modules immediately during import time.
 import_all_plugins()
 import_builtin_formatters()
 
 
-def apply_line_formatters(line: str, config: FormatterConfig, flags: Flags) -> str:
-    for name in config.enabled_formatters:
-        formatter = FORMATTER_REGISTRY.line.get(name)
-        if formatter:
-            line = formatter.apply(line, flags)
-    return line
+class DocumentFormatter:
+    def __init__(self, config: FormatterConfig):
+        logger.debug("starting formatter")
+        self.config = config
+        self.flags: Flags = Flags()
+        self.multiline_buffer: list[str] = []
+        self.output_doc: list[str] = []
 
+    def _apply_line_formatters(self, line: str) -> str:
+        """
+        Processes a single line of a document using the specified formatting pipeline.
 
-def apply_preprocessors(document: list[str], config: FormatterConfig) -> list[str]:
-    for formatter in config.enabled_formatters:
-        preprocessor = FORMATTER_REGISTRY.preprocessor.get(formatter)
-        if preprocessor:
-            document = preprocessor.apply(document, config)
-    return document
+        Arguments:
+            line: A string representing the line to be formatted.
 
+        Returns:
+            A string representing the formatted line.
+        """
+        for name in self.config.enabled_formatters:
+            formatter = FORMATTER_REGISTRY.line.get(name)
+            if formatter:
+                line = formatter.apply(line, self.flags)
+        return line
 
-def format_document(input_doc: list[str], config: FormatterConfig) -> list[str]:
-    working_doc = apply_preprocessors(input_doc, config)
+    def _apply_preprocessors(self, document: list[str]) -> list[str]:
+        """
+        Pre-processes a document using the specified pipeline configuration.
 
-    # Global registers for the iteration logic to use
-    multiline_buffer: list[str] = []  # 2D list that's used to buffer multiline formatting
-    output_doc: list[str] = []  # The buffer for the final document
-    flags = Flags()
+        Args:
+            document: The document to be processed.
 
-    # Main Iterator
-    # - Processes each line through a line-formatting pipeline
-    # - Accumulates lines for multi-line formatting in a buffer
+        Returns:
+            The processed document.
+        """
+        for formatter in self.config.enabled_formatters:
+            preprocessor = FORMATTER_REGISTRY.preprocessor.get(formatter)
+            if preprocessor:
+                document = preprocessor.apply(document, self.config)
+        return document
 
-    for line in working_doc:
-        working_line = line
+    def format_document(self, input_doc: list[str]) -> list[str]:
+        """Format Document
+
+        Apply formatting to a list of strings, where each string represents a line in a document, and return the formatted result.
+
+        Arguments:
+            input_doc (list[str]): The document to be formatted.
+
+        Returns:
+            list[str]: The formatted document.
+        """
+        working_doc: list[str] = self._apply_preprocessors(input_doc)
+
+        for line in working_doc:
+            self.process_line(line)
+
+        return self.output_doc
+
+    def process_line(self, line: str) -> None:
+        """
+        Runs a line through the formatting pipeline, then passes it on to the multiline handler.
+        Args:
+            line (str): the line of the document to process
+        """
         if line.startswith("```"):
-            # Toggle preformatted code block flag
-            flags.in_preformat = not flags.in_preformat
-        working_line = apply_line_formatters(working_line, config, flags)
+            self.flags.in_preformat = not self.flags.in_preformat
 
-        if working_line.isspace() and flags.buffer_until_empty_line:
-            # Empty line detected; flush buffered content, if any
-            output_doc += flags.buffer_until_empty_line
-            flags.buffer_until_empty_line.clear()
+        working_line = self._apply_line_formatters(line)
 
-        # Check for possible start of a multi-line formatter
-        for name in config.enabled_formatters:
+        if working_line.isspace() and self.flags.buffer_until_empty_line:
+            self.flush_buffered_content()
+
+        if not self.flags.in_multiline:
+            self.check_and_start_multiline(working_line)
+
+        self.handle_multiline_formatting(working_line)
+
+    def flush_buffered_content(self) -> None:
+        """
+        Moves all buffered content into the output document and clears the buffer.
+
+        This is typically called when an empty line is encountered, and the buffer is
+        managed using the 'buffer_until_empty_line' flag.
+        """
+        self.output_doc += self.flags.buffer_until_empty_line
+        self.flags.buffer_until_empty_line.clear()
+
+    def check_and_start_multiline(self, line: str) -> None:
+        """
+        Checks if a line initiates a multiline formatting block using enabled
+        multiline formatters. If matched, sets the flags to indicate that
+        multiline formatting is active.
+
+        Args:
+            line: The current line being processed.
+        """
+        for name in self.config.enabled_formatters:
             formatter = FORMATTER_REGISTRY.multiline.get(name)
-            if not formatter:
-                continue
-            if not re.match(formatter.start_pattern, working_line):
-                continue
-            flags.in_multiline = True
-            flags.active_multiline_formatter = formatter.name
+            if formatter and re.match(formatter.start_pattern, line):
+                self.flags.in_multiline = True
+                self.flags.active_multiline_formatter = formatter.name
+                break
 
-        # Handle active multi-line formatters
-        if flags.in_multiline and flags.active_multiline_formatter:
-            active_formatter = FORMATTER_REGISTRY.multiline.get(flags.active_multiline_formatter)
+    def handle_multiline_formatting(self, line: str) -> None:
+        """
+        Processes lines within an active multiline formatting block. If the line
+        matches the end of a multiline formatter, it triggers the end of formatting.
+        Lines that do not match are added to a buffer for further processing.
+
+        Args:
+            line: The current line being processed, which is potentially part of a multiline formatting block.
+        """
+        if self.flags.in_multiline and self.flags.active_multiline_formatter:
+            active_formatter = FORMATTER_REGISTRY.multiline.get(self.flags.active_multiline_formatter)
             if not active_formatter:
-                continue
-            if re.match(active_formatter.end_pattern, working_line):
-                # Multi-line buffer complete; format and output it
-                flags.in_multiline = False
-                flags.active_multiline_formatter = None
-                formatted_buffer = active_formatter.apply(multiline_buffer, config, flags)
-                output_doc += formatted_buffer
-                multiline_buffer.clear()
-                continue
-            multiline_buffer.append(working_line)
+                return
+
+            if re.match(active_formatter.end_pattern, line):
+                self.end_multiline_formatting(active_formatter)
+                return
+
+            self.multiline_buffer.append(line)
         else:
-            output_doc.append(working_line)
-    return output_doc
+            self.output_doc.append(line)
+
+    def end_multiline_formatting(self, formatter: MultilineFormatter) -> None:
+        """
+        Ends the multiline formatting block and processes all buffered lines, then appends the results to the output document
+
+        Args:
+            formatter: the MultilineFormatter object to apply to buffered lines
+        """
+        self.flags.in_multiline = False
+        self.flags.active_multiline_formatter = None
+        formatted_buffer = formatter.apply(self.multiline_buffer, self.config, self.flags)
+        self.output_doc += formatted_buffer
+        self.multiline_buffer.clear()
 
 
+# Function used to run the formatter module on a document.
 def apply_formatting_to_file(config: FormatterConfig) -> bool:
     if config.input_path is None or config.output_path is None:
         logger.error("Formatter error: input or output path not specified")
@@ -96,7 +167,8 @@ def apply_formatting_to_file(config: FormatterConfig) -> bool:
         input_file = f.readlines()
 
     # format the input doc and write the results to the output doc
-    gemtext = f"{''.join(format_document(input_file, config))}"
+    formatter = DocumentFormatter(config)
+    gemtext = f"{''.join(formatter.format_document(input_file))}"
 
     with config.output_path.open("w", encoding="utf-8") as page:
         page.write(gemtext)
@@ -109,6 +181,4 @@ __all__ = [
     "LineFormatter",
     "MultilineFormatter",
     "apply_formatting_to_file",
-    "registry",
-
-    ]
+]

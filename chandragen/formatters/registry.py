@@ -2,6 +2,7 @@ import importlib
 import pkgutil
 from typing import Any
 
+
 from chandragen.formatters import __path__
 from chandragen.formatters.types import (
     DocumentPreprocessor,
