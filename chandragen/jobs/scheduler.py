@@ -1,3 +1,4 @@
+# TODO: re-do most of this file. current state does NOT align with the current vision of chandragen.
 from abc import ABC, abstractmethod
 from threading import Event, Thread
 from time import sleep
@@ -36,7 +37,25 @@ J = TypeVar("J", bound=Job)
 
 
 class SchedulerRunner:
-    """Class that runs schedulers."""
+    """
+    Class dedicated to managing the lifecycle of scheduler instances.
+
+    Attributes:
+        tick_rate (float): Defines the rate at which the scheduler operates, as set in the system configuration.
+        garbage_collector (GarbageCollector): an instance of the garbage collector thread that handles keeping the queue clean.
+
+    Methods:
+        __init__():
+            Initializes the SchedulerRunner with a tick rate and starts the garbage collector to manage system resources efficiently.
+
+        run(jobs: list[J]):
+            Initiates and manages the execution of a scheduler based on the system's configuration settings.
+            Parameters:
+                jobs (list[J]): A list of job instances to be scheduled. The mode of scheduling (oneshot or cron) is determined by the system configuration.
+            Executes the appropriate scheduler and controls its operation through periodic ticks until the scheduler is commanded to stop.
+
+    The SchedulerRunner acts as a bridge to start, handle execution, and terminate schedulers based on predefined operational modes, ensuring a seamless integration with overall system behavior.
+    """
 
     def __init__(self):
         self.tick_rate = system_config.tick_rate
@@ -63,9 +82,30 @@ class SchedulerRunner:
 
 class JobScheduler(ABC, SchedulerRunner):
     """
-    Base job scheduler abstract class should inherit from the scheduler runner.
-    This way we can keep the scope of the schedulers limited to just inserting jobs,
-    but they can still access the invoked pooler.
+    Abstract base class for a job scheduler, designed to be subclassed for specific scheduler modules.
+
+    Attributes:
+        job_queue_db (JobQueueController): Handles interactions with the job queue database, including inserting jobs and tuning auto-vacuum settings.
+
+    Methods:
+        __init__():
+            Sets up the JobScheduler with a job queue controller and adjusts database settings.
+
+        add_job_to_queue(job_config: J):
+            Takes a job configuration object, serializes it, and adds it to the job queue.
+            Parameters:
+                job_config (J): Comprises the job's configuration details like type and name, preparing it for scheduling.
+
+        start():
+            Abstract method requiring implementation in subclasses. Initiates the scheduler, sets up recurring job intervals, or performs initial setup tasks.
+
+        tick():
+            Abstract method requiring implementation in subclasses. Represents a scheduler cycle or "tick," supporting periodic operations for scheduling maintenance.
+
+        stop():
+            Abstract method requiring implementation in subclasses. Manages operations to stop the scheduler gracefully, including necessary cleanup tasks.
+
+    This class standardizes the interface and behavior for various scheduler implementations, focusing on job submission and lifecycle management.
     """
 
     def __init__(self):
@@ -105,7 +145,7 @@ class OneShotScheduler(JobScheduler):
         # Queue all jobs uwu
         for job in self.jobs:
             self.add_job_to_queue(job)
-        logger.info(f"✨ Queued {len(self.jobs)} jobs, nya~")
+        logger.info(f"Queued {len(self.jobs)} jobs")
         self.shutdown_event.clear()
 
     def tick(self):
@@ -114,14 +154,14 @@ class OneShotScheduler(JobScheduler):
         jobs_in_flight = pending + in_progress
 
         if not jobs_in_flight:
-            logger.info("💫 All jobs complete~ Time for a catnap :3")
+            logger.info("All jobs complete, shutting down.")
             updated_config = system_config
             updated_config.running = False
             chandragen.update_system_config(updated_config)
             self.shutdown_event.set()
 
     def stop(self):
-        logger.info("🛑 Scheduler stopped~")
+        logger.info("🛑 Scheduler stopped")
         logger.debug("Invoking garbage collector to purge complete jobs")
         self.job_queue_db.delete_completed_jobs()
         self.shutdown_event.set()
