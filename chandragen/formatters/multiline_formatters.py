@@ -93,4 +93,3 @@ class ConvertMDXImages(MultilineFormatter):
         except KeyError:
             # Just strip without converting if the tags needed to construct the link are missing
             return []
-
