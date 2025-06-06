@@ -5,6 +5,7 @@ import sys
 import time
 import tomllib
 from pathlib import Path
+from typing import Any
 
 from loguru import logger
 
@@ -28,7 +29,7 @@ class Parser(argparse.ArgumentParser):
     messages with logging, instead of writing directly to stdout.
     """
 
-    def _print_message(self, message: str, file: SupportsWrite[str] | None = None) -> None:
+    def _print_message(self, message: str, file: Any | None = None) -> None:
         logger.log("CLI", message)
 
 
@@ -189,7 +190,7 @@ def run_pooler(args: argparse.Namespace | None = None):
     )
     pooler = ProcessPooler()
     pooler.start()
-    while system_config.running():
+    while system_config.running:
         time.sleep(120)
 
 
@@ -227,52 +228,37 @@ def list_formatters_command(args: argparse.Namespace):
 
 
 def formatter_info_command(args: argparse.Namespace):
-    """CLI command that checks the formatter registry for the requested formatter and provides the in-class metadata for it"""
+    """CLI command that checks the formatter registry for the requested formatter and provides the in-class metadata for it."""
     updated_config = system_config
     updated_config.invoked_command = "formatter_info"
     chandragen.update_system_config(updated_config)
+
     formatter = args.formatter
-    if formatter in FORMATTER_REGISTRY.line:
-        formatter_cls = FORMATTER_REGISTRY.line[formatter]
-        logger.log(
-            "CLI",
-            f"""
-Line-Formatter "{formatter}":
+    formatter_types = {
+        "line": ("Line-Formatter", None, None),
+        "preprocessor": ("Document Pre-Processor", None, None),
+        "multiline": ("Multi-Line Formatter", "start_pattern", "end_pattern"),
+    }
+
+    for registry_type, (label, start_attr, end_attr) in formatter_types.items():
+        if formatter in getattr(FORMATTER_REGISTRY, registry_type):
+            formatter_cls = getattr(FORMATTER_REGISTRY, registry_type)[formatter]
+            start_regex = getattr(formatter_cls, start_attr) if start_attr else ""
+            end_regex = getattr(formatter_cls, end_attr) if end_attr else ""
+
+            logger.log(
+                "CLI",
+                f"""
+{label} "{formatter}":
     
         -= Description =-
 {formatter_cls.description}
 Valid types: {formatter_cls.valid_types}
 Origin: {formatter_cls.__module__}
+{"Start Regex: " + start_regex if start_regex else ""}
+{"End Regex: " + end_regex if end_regex else ""}
 """,
-        )
-    if formatter in FORMATTER_REGISTRY.preprocessor:
-        formatter_cls = FORMATTER_REGISTRY.preprocessor[formatter]
-        logger.log(
-            "CLI",
-            f"""
-Document Pre-Processor "{formatter}":
-        
-        -= Description =-
-{formatter_cls.description}
-Valid types: {formatter_cls.valid_types}
-Origin: {formatter_cls.__module__}
-""",
-        )
-    if formatter in FORMATTER_REGISTRY.multiline:
-        formatter_cls = FORMATTER_REGISTRY.multiline[formatter]
-        logger.log(
-            "CLI",
-            f"""
-Multi-Line Formatter "{formatter}":
-    
-       -= Description =-
-{formatter_cls.description}
-Valid types: {formatter_cls.valid_types}
-Start Regex: {formatter_cls.start_pattern} 
-End Regex: {formatter_cls.end_pattern}
-Origin: {formatter_cls.__module__}
-""",
-        )
+            )
 
 
 # bootstrap nonsense

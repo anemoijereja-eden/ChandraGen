@@ -1,7 +1,7 @@
 import code
+import sys
 import threading
 import traceback
-import sys
 from typing import Any
 
 from loguru import logger
