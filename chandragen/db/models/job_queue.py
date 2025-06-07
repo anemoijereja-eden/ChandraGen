@@ -29,6 +29,15 @@ persistence after a crash
 
 
 class JobState(IntEnum):
+    """
+    Describes the state of a job in the queue.
+
+    PENDING: waiting for a worker process to claim the job
+    IN_PROGRESS: claimed by a worker process, actively being run
+    COMPLETED: job has been run successfully without errors
+    FAILED: the job either didn't complete or completed with some errors
+    """
+
     PENDING = 0
     IN_PROGRESS = 1
     COMPLETED = 2
@@ -36,6 +45,8 @@ class JobState(IntEnum):
 
 
 class JobQueueEntry(SQLModel, table=True):
+    """Represents a Job in the queue, with the job queue being the overall table."""
+
     __tablename__ = "job_queue"  # pyright:ignore
     __table_args__ = (
         Index("ix_job_state", "state"),
@@ -67,4 +78,3 @@ event.listen(
     "after_create",
     DDL("ALTER TABLE %(table)s SET UNLOGGED"),
 )
-
